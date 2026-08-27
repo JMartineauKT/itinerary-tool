@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Itinerary Studio — GDS to Client Itinerary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Brand palette */
+    --brand-green:#00593F;   /* Forest Green — primary */
+    --brand-white:#FFFFFF;
+    --brand-black:#00241A;   /* near-black, brand black */
+    --brand-grass:#71C08A;   /* Grass Green */
+    --brand-sand:#FCC154;    /* Sand Yellow */
+    --brand-sky:#8AC6E2;     /* Sky Blue */
+    --brand-sunset:#F4663B;  /* Sunset Red */
+    --brand-ocean:#21456D;   /* Ocean Blue */
+
+    /* Terminal (builder) side */
+    --ink:#00241A;
+    --panel:#0d3327;
+    --panel-2:#134334;
+    --amber:#FCC154;
+    --amber-dim:#c99a3f;
+    --terminal-text:#FFFFFF;
+    --terminal-sub:#9fc2b3;
+    --line:#1f4d3b;
+    --ok:#71C08A;
+    --warn:#F4663B;
+
+    /* Document (client-facing) side */
+    --paper:#f7f8fa;
+    --paper-card:#ffffff;
+    --navy:#00241A;
+    --navy-soft:#3d5a50;
+    --teal:#21456D;
+    --teal-soft:#e4edf3;
+    --rule:#dde3ea;
+    --stub:#00241A;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-kerning:normal;
+    letter-spacing:0;
+    font-weight:400;
+    color:var(--terminal-text);
+    min-height:100vh;
+  }
+
+  /* ---------- App Shell ---------- */
+  .app{
+    display:grid;
+    grid-template-columns: 1fr;
+    min-height:100vh;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 28px;
+    border-bottom:1px solid var(--line);
+    background:#00593F;
+    color:#ffffff;
+  }
+  .brandmark{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .brandmark .flap{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-weight:600;
+    font-size:13px;
+    color:var(--ink);
+    background:var(--amber);
+    padding:3px 7px;
+    border-radius:3px;
+  }
+  .brandmark h1{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0;
+    color:#ffffff;
+  }
+  .brandmark span.sub{
+    font-size:12px;
+    color:rgba(255,255,255,.75);
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+  }
+
+  .board{
+    display:flex;
+    gap:6px;
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+  }
+  .flapchar{
+    width:26px;height:34px;
+    background:#00241A;
+    border:1px solid var(--line);
+    border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:600;
+    color:var(--amber);
+    position:relative;
+    overflow:hidden;
+  }
+  .flapchar::after{
+    content:"";
+    position:absolute;left:0;right:0;top:49%;height:1px;
+    background:rgba(0,0,0,.55);
+  }
+  .flapchar.flip{ animation: flip .35s ease; }
+  @keyframes flip{
+    0%{ transform: scaleY(1); }
+    45%{ transform: scaleY(0.05); }
+    55%{ transform: scaleY(0.05); }
+    100%{ transform: scaleY(1); }
+  }
+
+  .main-grid{
+    display:grid;
+    grid-template-columns: minmax(360px, 460px) 1fr;
+    gap:0;
+    align-items:start;
+  }
+  @media (max-width: 980px){
+    .main-grid{ grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Terminal Panel ---------- */
+  .terminal{
+    padding:24px 28px 60px;
+    border-right:1px solid var(--line);
+    min-height:calc(100vh - 73px);
+  }
+  .terminal-section{
+    margin-bottom:26px;
+  }
+  .label{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:11px;
+    color:var(--amber);
+    margin-bottom:8px;
+    display:block;
+  }
+  textarea, input, select{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--terminal-text);
+    border-radius:6px;
+    padding:10px 12px;
+    width:100%;
+    font-size:13px;
+  }
+  textarea{
+    min-height:170px;
+    resize:vertical;
+    line-height:1.5;
+  }
+  textarea::placeholder{ color:#5b6577; }
+  textarea:focus, input:focus, select:focus{
+    outline:2px solid var(--amber-dim);
+    outline-offset:1px;
+  }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+
+  .btn{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:10px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    transition:transform .08s ease, filter .15s ease;
+  }
+  .btn:active{ transform: scale(.97); }
+  .btn-primary{
+    background:var(--amber);
+    color:#00241A;
+  }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--terminal-text);
+  }
+  .btn-ghost:hover{ border-color:var(--amber-dim); }
+  .btn-sm{ padding:6px 10px; font-size:11px; }
+  .btn-danger{ color:var(--warn); }
+
+  .parse-actions{ margin-top:10px; display:flex; gap:10px; align-items:center;}
+  .hint{ font-size:12px; color:var(--terminal-sub); margin-top:8px; line-height:1.5; }
+
+  .seg-group-title{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:11px;
+    color:var(--terminal-sub);
+    margin:22px 0 10px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .seg-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .seg-card.hotel{ border-left-color:var(--teal); }
+  .seg-card.car{ border-left-color:var(--brand-sunset); }
+  .seg-card.rail{ border-left-color:var(--brand-grass); }
+  .seg-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:8px;
+  }
+  .seg-type-tag{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:10px;
+    color:var(--terminal-sub);
+  }
+  .seg-fields{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .seg-fields .full{ grid-column:1/-1; }
+  .fld label{
+    font-size:10px;
+    color:var(--terminal-sub);
+    display:block;
+    margin-bottom:3px;
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+  }
+  .fld input, .fld select{
+    padding:7px 9px;
+    font-size:12.5px;
+  }
+  .seg-remove{
+    background:none;border:none;color:var(--terminal-sub);
+    cursor:pointer; font-size:16px; line-height:1;
+    padding:2px 6px;
+  }
+  .seg-remove:hover{ color:var(--warn); }
+
+  .add-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+
+  .manual-input{
+    margin-bottom:26px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .manual-input summary{
+    list-style:none;
+    cursor:pointer;
+    padding:12px 14px;
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--amber);
+    background:var(--panel);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .manual-input summary::-webkit-details-marker{ display:none; }
+  .manual-input summary::after{
+    content:"+";
+    font-size:16px;
+    color:var(--terminal-sub);
+    transition:transform .15s ease;
+  }
+  .manual-input[open] summary::after{ content:"–"; }
+  .manual-input summary:hover{ color:var(--terminal-text); }
+  .manual-input-body{
+    padding:20px 14px 6px;
+    border-top:1px solid var(--line);
+  }
+  .manual-input-body .terminal-section:last-child{ margin-bottom:6px; }
+
+  .empty-note{
+    font-size:12.5px; color:var(--terminal-sub);
+    border:1px dashed var(--line);
+    padding:14px; border-radius:8px;
+    text-align:center;
+  }
+
+  /* ---------- Document Panel ---------- */
+  .doc-wrap{
+    background:var(--paper);
+    min-height:calc(100vh - 73px);
+    padding:24px 40px 80px;
+  }
+  .doc-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .doc-toolbar .btn-ghost{
+    border-color:var(--rule);
+    color:var(--navy);
+    background:var(--paper-card);
+  }
+  .doc-toolbar .btn-ghost:hover{ border-color:var(--teal); }
+
+  /* Simple email-table view */
+  .simple-view{
+    padding:30px 34px;
+  }
+  .simple-view .trip-line{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    margin-bottom:16px;
+  }
+  .simple-view .trip-line .t1{
+    font-size:17px; font-weight:600; color:var(--navy);
+  }
+  .simple-view .trip-line .t2{
+    font-size:13px; color:var(--navy-soft); margin-top:2px;
+  }
+  table.email-table{
+    border-collapse:collapse;
+    width:100%;
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    font-size:13px;
+    color:#222;
+  }
+  table.email-table th{
+    text-align:left;
+    background:#f0f2f5;
+    color:#00241A;
+    font-size:11.5px;
+    padding:8px 10px;
+    border:1px solid #d8dde3;
+  }
+  table.email-table td{
+    padding:9px 10px;
+    border:1px solid #d8dde3;
+    vertical-align:top;
+  }
+  table.email-table tr:nth-child(even) td{ background:#fafbfc; }
+  table.email-table .segtype{
+    font-weight:600;
+    white-space:nowrap;
+  }
+  table.email-table .muted{ color:#667; font-size:12px; }
+
+  .itinerary-doc{
+    background:var(--paper-card);
+    border-radius:14px;
+    box-shadow:0 1px 3px rgba(20,38,64,.06), 0 12px 32px -18px rgba(20,38,64,.28);
+    overflow:hidden;
+    max-width:820px;
+    margin:0 auto;
+  }
+
+  .doc-empty{
+    text-align:center;
+    padding:70px 30px;
+    color:var(--navy-soft);
+  }
+  .doc-empty .glyph{ font-size:34px; margin-bottom:14px; }
+  .doc-empty h3{
+    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
+    color:var(--navy);
+    font-size:20px;
+    margin:0 0 8px;
+  }
+
+  /* Print styles (native browser print, e.g. Ctrl/Cmd+P) */
+  @media print{
+    body{ background:#fff; }
+    .topbar, .terminal, .doc-toolbar{ display:none !important; }
+    .main-grid{ display:block; }
+    .doc-wrap{ padding:0; background:#fff; }
+    .itinerary-doc{ box-shadow:none; border-radius:0; max-width:100%; }
+  }
+
+  ::selection{ background:var(--amber); color:#00241A; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brandmark">
+      <span class="flap">GDS→</span>
+      <div>
+        <h1>Itinerary Studio</h1>
+        <span class="sub">Sabre &amp; Amadeus PNR → client-ready itinerary</span>
+      </div>
+    </div>
+    <div class="board" id="flapBoard"></div>
+  </div>
+
+  <div class="main-grid">
+    <!-- ===================== TERMINAL / INPUT SIDE ===================== -->
+    <div class="terminal">
+
+      <div class="terminal-section">
+        <span class="label">01 · Paste GDS Record</span>
+        <textarea id="pnrInput" placeholder="Paste the raw PNR itinerary text from Sabre (*IR / *IA) or Amadeus (RTR) here...
+
+e.g.
+1 UA 456 Y 12AUG 3 ORDLAX HK1  815A 1042A
+2 HH HOTEL LOS ANGELES CA HK1 12AUG-15AUG /CONF-98213
+3 AVIS CAR LAX HK1 12AUG-15AUG"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label class="label" style="margin-bottom:4px;">Source</label>
+            <select id="gdsSource">
+              <option value="auto">Auto-detect</option>
+              <option value="sabre">Sabre</option>
+              <option value="amadeus">Amadeus</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="quotingExchangeCheck" style="width:auto; accent-color:var(--amber);">
+            <span class="label" style="margin-bottom:0;">Exchange quote</span>
+          </label>
+          <div id="exchangeFields" style="display:none; margin-top:12px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:12px;">
+              <input type="checkbox" id="multipleOptionsCheck" style="width:auto; accent-color:var(--amber);">
+              <span class="label" style="margin-bottom:0;">Multiple options</span>
+            </label>
+
+            <div id="singleExchangeFields">
+              <div class="fld" style="margin-bottom:10px;">
+                <label>Fare diff per person</label>
+                <input id="fareDiffInput" placeholder="e.g. 150">
+              </div>
+              <div class="fld">
+                <label>Penalty per person</label>
+                <input id="penaltyInput" placeholder="e.g. 200">
+              </div>
+            </div>
+
+            <div id="multiOptionsContainer" style="display:none;">
+              <div id="optionsList"></div>
+              <button class="btn btn-ghost btn-sm" id="addOptionBtn" type="button" style="margin-top:4px;">+ Add option</button>
+            </div>
+          </div>
+        </div>
+        <div class="parse-actions">
+          <button class="btn btn-primary" id="parseBtn">⌁ Parse record</button>
+          <button class="btn btn-ghost btn-sm" id="clearInputBtn">Clear</button>
+        </div>
+        <div class="hint" id="detectHint"></div>
+      </div>
+
+      <details class="manual-input">
+        <summary>Manual input</summary>
+        <div class="manual-input-body">
+          <div class="terminal-section">
+            <span class="label">Passengers</span>
+            <input id="passengersInput" placeholder="Parsed automatically, or type names here">
+            <div class="hint">Comma-separated. Auto-filled from the PNR when names are detected — edit freely.</div>
+          </div>
+
+          <div class="terminal-section">
+            <div class="seg-group-title">
+              <span>02 · Segments <span id="segCount" style="color:var(--terminal-sub);"></span></span>
+            </div>
+            <div id="segList"></div>
+            <div id="segEmpty" class="empty-note">No segments yet. Parse a record above, or add one manually.</div>
+            <div class="add-row">
+              <button class="btn btn-ghost btn-sm" data-add="flight">+ Flight</button>
+              <button class="btn btn-ghost btn-sm" data-add="hotel">+ Hotel</button>
+              <button class="btn btn-ghost btn-sm" data-add="car">+ Car</button>
+              <button class="btn btn-ghost btn-sm" data-add="rail">+ Rail</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- ===================== DOCUMENT / OUTPUT SIDE ===================== -->
+    <div class="doc-wrap">
+      <div class="doc-toolbar">
+        <div class="hint" style="color:var(--navy-soft);">This is what your client will see.</div>
+        <button class="btn btn-ghost" id="copyBtn">⧉ Copy table HTML</button>
+      </div>
+
+      <div class="itinerary-doc" id="itineraryDoc"></div>
+
+      <div id="manualCopyBox" style="display:none; margin-top:16px; background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:14px 16px;">
+        <div style="color:var(--navy); font-size:13px; font-weight:600; margin-bottom:8px;">Automatic copy isn't available here — select the code below and copy it manually (it's already selected, just press Ctrl/Cmd+C), then paste into your email's HTML source view.</div>
+        <textarea id="manualCopyArea" readonly style="width:100%; height:140px; font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif; font-size:12px; padding:10px; border:1px solid var(--rule); border-radius:6px; background:#fff; color:#333; resize:vertical;"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+let segments = []; // {id, type: 'flight'|'hotel'|'car'|'rail', ...fields}
+let passengers = []; // array of display-ready name strings, e.g. "Ron Barry Somogyi"
+let quotingExchange = false;
+let fareDiffPerPerson = '';
+let penaltyPerPerson = '';
+let multipleOptions = false;
+let exchangeOptions = []; // { id, segmentsInput, fareDiff, penalty }
+let optionIdCounter = 1;
+let idCounter = 1;
+
+const els = {
+  pnrInput: document.getElementById('pnrInput'),
+  gdsSource: document.getElementById('gdsSource'),
+  parseBtn: document.getElementById('parseBtn'),
+  clearInputBtn: document.getElementById('clearInputBtn'),
+  detectHint: document.getElementById('detectHint'),
+  passengersInput: document.getElementById('passengersInput'),
+  quotingExchangeCheck: document.getElementById('quotingExchangeCheck'),
+  exchangeFields: document.getElementById('exchangeFields'),
+  fareDiffInput: document.getElementById('fareDiffInput'),
+  penaltyInput: document.getElementById('penaltyInput'),
+  multipleOptionsCheck: document.getElementById('multipleOptionsCheck'),
+  singleExchangeFields: document.getElementById('singleExchangeFields'),
+  multiOptionsContainer: document.getElementById('multiOptionsContainer'),
+  optionsList: document.getElementById('optionsList'),
+  addOptionBtn: document.getElementById('addOptionBtn'),
+  segList: document.getElementById('segList'),
+  segEmpty: document.getElementById('segEmpty'),
+  segCount: document.getElementById('segCount'),
+  itineraryDoc: document.getElementById('itineraryDoc'),
+  copyBtn: document.getElementById('copyBtn'),
+  manualCopyBox: document.getElementById('manualCopyBox'),
+  manualCopyArea: document.getElementById('manualCopyArea'),
+  flapBoard: document.getElementById('flapBoard'),
+};
+
+/* ============================================================
+   REFERENCE DATA (small, best-effort lookups — falls back to code)
+   ============================================================ */
+const AIRLINES = {
+  // North America — mainline
+  AA:'American Airlines', UA:'United Airlines', DL:'Delta Air Lines', WN:'Southwest Airlines',
+  AS:'Alaska Airlines', B6:'JetBlue', AC:'Air Canada', WS:'WestJet', PD:'Porter Airlines',
+  NK:'Spirit Airlines', F9:'Frontier Airlines', G4:'Allegiant Air', SY:'Sun Country Airlines',
+  HA:'Hawaiian Airlines',
+  // North America — regional / codeshare operators (common "operated by" carriers)
+  OO:'SkyWest Airlines', YX:'Republic Airways', MQ:'Envoy Air', '9E':'Endeavor Air',
+  YV:'Mesa Airlines', G7:'GoJet Airlines', QX:'Horizon Air', OH:'PSA Airlines',
+  ZW:'Air Wisconsin', CP:'Compass Airlines', EV:'ExpressJet', C5:'CommutAir',
+  '9K':'Cape Air', PT:'Piedmont Airlines', ZK:'Great Lakes Airlines',
+  // UK / Ireland / Western Europe
+  BA:'British Airways', VS:'Virgin Atlantic', EI:'Aer Lingus', FR:'Ryanair',
+  U2:'easyJet', EJU:'easyJet Europe', BE:'Flybe', LS:'Jet2', TOM:'TUI Airways',
+  AF:'Air France', KL:'KLM', LH:'Lufthansa', LX:'SWISS', OS:'Austrian Airlines',
+  SN:'Brussels Airlines', EW:'Eurowings', '4U':'Germanwings', DE:'Condor',
+  IB:'Iberia', VY:'Vueling', AZ:'ITA Airways', TP:'TAP Air Portugal',
+  DY:'Norwegian', SK:'SAS', AY:'Finnair', FI:'Icelandair',
+  TO:'Transavia France', HV:'Transavia', V7:'Volotea', UX:'Air Europa',
+  // Central / Eastern Europe
+  LO:'LOT Polish Airlines', OK:'Czech Airlines', W6:'Wizz Air', RO:'TAROM',
+  JU:'Air Serbia', OU:'Croatia Airlines', A3:'Aegean Airlines', OA:'Olympic Air',
+  GQ:'Sky Express',
+  PC:'Pegasus Airlines', TK:'Turkish Airlines', KM:'Air Malta',
+  // Middle East / Africa
+  EK:'Emirates', EY:'Etihad Airways', QR:'Qatar Airways', SV:'Saudia',
+  MS:'EgyptAir', RJ:'Royal Jordanian', ME:'Middle East Airlines', GF:'Gulf Air',
+  WY:'Oman Air', KU:'Kuwait Airways', ET:'Ethiopian Airlines', SA:'South African Airways',
+  KQ:'Kenya Airways', AT:'Royal Air Maroc', TU:'Tunisair',
+  // Asia-Pacific
+  SQ:'Singapore Airlines', CX:'Cathay Pacific', HX:'Hong Kong Airlines',
+  JL:'Japan Airlines', NH:'ANA', MM:'Peach Aviation', GK:'Jetstar Japan',
+  KE:'Korean Air', OZ:'Asiana Airlines', TW:'T\u2019way Air', LJ:'Jin Air',
+  CI:'China Airlines', BR:'EVA Air', CA:'Air China', MU:'China Eastern',
+  CZ:'China Southern', HU:'Hainan Airlines', FM:'Shanghai Airlines',
+  GA:'Garuda Indonesia', QZ:'Indonesia AirAsia', ID:'Batik Air', JT:'Lion Air',
+  MH:'Malaysia Airlines', AK:'AirAsia', OD:'Malindo Air',
+  TG:'Thai Airways', WE:'Thai Smile', FD:'Thai AirAsia', VZ:'Thai Vietjet',
+  VN:'Vietnam Airlines', VJ:'VietJet Air', PR:'Philippine Airlines', '5J':'Cebu Pacific',
+  UL:'SriLankan Airlines', PK:'Pakistan International Airlines',
+  AI:'Air India', IX:'Air India Express', '6E':'IndiGo', SG:'SpiceJet', UK:'Vistara',
+  QF:'Qantas', VA:'Virgin Australia', JQ:'Jetstar Airways', NZ:'Air New Zealand',
+  FJ:'Fiji Airways',
+  // Latin America / Caribbean
+  LA:'LATAM', JJ:'LATAM Brasil', G3:'GOL Linhas Aéreas', AD:'Azul Brazilian Airlines',
+  AM:'Aeroméxico', Y4:'Volaris', VB:'VivaAerobus', AV:'Avianca', CM:'Copa Airlines',
+  AR:'Aerolíneas Argentinas', H2:'Sky Airline', DM:'Arajet',
+  B0:'La Compagnie', BW:'Caribbean Airlines', JY:'InterCaribbean Airways',
+  // Cargo / other common operating carriers
+  FX:'FedEx Express', '5X':'UPS Airlines', GTI:'Atlas Air'
+};
+
+const AIRPORTS = {
+  YYZ:'Toronto', YVR:'Vancouver', YUL:'Montréal', YYC:'Calgary', YOW:'Ottawa',
+  JFK:'New York', EWR:'New York', LGA:'New York', ORD:'Chicago', LAX:'Los Angeles',
+  SFO:'San Francisco', SEA:'Seattle', DEN:'Denver', ATL:'Atlanta', MIA:'Miami',
+  DFW:'Dallas', IAH:'Houston', BOS:'Boston', PHL:'Philadelphia', IAD:'Washington D.C.',
+  DCA:'Washington D.C.', LAS:'Las Vegas', PHX:'Phoenix', MCO:'Orlando', CLT:'Charlotte',
+  LHR:'London', LGW:'London', LCY:'London', STN:'London', CDG:'Paris', ORY:'Paris',
+  FCO:'Rome', CIA:'Rome', MXP:'Milan', LIN:'Milan', VCE:'Venice', NAP:'Naples',
+  CTA:'Catania', PSA:'Pisa', FLR:'Florence', BLQ:'Bologna', TRN:'Turin', PMO:'Palermo',
+  MAD:'Madrid', BCN:'Barcelona', AGP:'Málaga', PMI:'Palma de Mallorca', IBZ:'Ibiza',
+  VLC:'Valencia', SVQ:'Seville', BIO:'Bilbao', AMS:'Amsterdam', FRA:'Frankfurt',
+  MUC:'Munich', BER:'Berlin', DUS:'Düsseldorf', HAM:'Hamburg', STR:'Stuttgart',
+  ZRH:'Zürich', GVA:'Geneva', BSL:'Basel', VIE:'Vienna', SZG:'Salzburg',
+  DUB:'Dublin', SNN:'Shannon', LIS:'Lisbon', OPO:'Porto', FAO:'Faro',
+  ATH:'Athens', SKG:'Thessaloniki', JMK:'Mykonos', JTR:'Santorini', HER:'Heraklion',
+  CHQ:'Chania', RHO:'Rhodes', CFU:'Corfu', ZTH:'Zakynthos', KGS:'Kos', CFY:'Kefalonia',
+  IST:'Istanbul', SAW:'Istanbul', AYT:'Antalya', DLM:'Dalaman', BJV:'Bodrum',
+  MLA:'Malta', LCA:'Larnaca', PFO:'Paphos', SPU:'Split', DBV:'Dubrovnik', ZAG:'Zagreb',
+  BEG:'Belgrade', SOF:'Sofia', OTP:'Bucharest', WAW:'Warsaw', KRK:'Kraków',
+  GDN:'Gdańsk', PRG:'Prague', BUD:'Budapest', RIX:'Riga', TLL:'Tallinn', VNO:'Vilnius',
+  HEL:'Helsinki', OSL:'Oslo', BGO:'Bergen', ARN:'Stockholm', CPH:'Copenhagen',
+  KEF:'Reykjavík', LYS:'Lyon', NCE:'Nice', MRS:'Marseille', TLS:'Toulouse',
+  BOD:'Bordeaux', NTE:'Nantes', RAK:'Marrakech', CMN:'Casablanca', SSH:'Sharm El Sheikh',
+  HRG:'Hurghada', CAI:'Cairo', TLV:'Tel Aviv', AMM:'Amman', BEY:'Beirut',
+  DXB:'Dubai', DWC:'Dubai', DOH:'Doha', AUH:'Abu Dhabi', RUH:'Riyadh', JED:'Jeddah',
+  SIN:'Singapore', HKG:'Hong Kong', MFM:'Macau', TPE:'Taipei', MNL:'Manila',
+  CGK:'Jakarta', DPS:'Denpasar (Bali)', KUL:'Kuala Lumpur', HAN:'Hanoi', SGN:'Ho Chi Minh City',
+  RGN:'Yangon', PNH:'Phnom Penh', REP:'Siem Reap', CMB:'Colombo', KTM:'Kathmandu',
+  DEL:'Delhi', BOM:'Mumbai', BLR:'Bengaluru', MAA:'Chennai', CCU:'Kolkata', GOI:'Goa',
+  NRT:'Tokyo', HND:'Tokyo', KIX:'Osaka', NGO:'Nagoya', CTS:'Sapporo', FUK:'Fukuoka',
+  ICN:'Seoul', GMP:'Seoul', PUS:'Busan', PEK:'Beijing', PKX:'Beijing', PVG:'Shanghai',
+  SHA:'Shanghai', CAN:'Guangzhou', SZX:'Shenzhen', CTU:'Chengdu', XIY:'Xi\u2019an',
+  BKK:'Bangkok', DMK:'Bangkok', HKT:'Phuket', CNX:'Chiang Mai', USM:'Koh Samui',
+  SYD:'Sydney', MEL:'Melbourne', BNE:'Brisbane', PER:'Perth', ADL:'Adelaide',
+  OOL:'Gold Coast', CNS:'Cairns', AKL:'Auckland', WLG:'Wellington', CHC:'Christchurch',
+  ZQN:'Queenstown', NAN:'Nadi (Fiji)', PPT:'Papeete (Tahiti)',
+  GRU:'São Paulo', GIG:'Rio de Janeiro', SDU:'Rio de Janeiro', BSB:'Brasília',
+  EZE:'Buenos Aires', AEP:'Buenos Aires', SCL:'Santiago', LIM:'Lima', BOG:'Bogotá',
+  UIO:'Quito', CTG:'Cartagena', MDE:'Medellín', PTY:'Panama City',
+  MEX:'Mexico City', CUN:'Cancún', SJD:'Los Cabos', PVR:'Puerto Vallarta',
+  GDL:'Guadalajara', OAX:'Oaxaca', MID:'Mérida', NAS:'Nassau', PUJ:'Punta Cana',
+  SJU:'San Juan', AUA:'Aruba', CUR:'Curaçao', MBJ:'Montego Bay', GCM:'Grand Cayman',
+  BGI:'Bridgetown (Barbados)', SXM:'Sint Maarten', ANU:'Antigua'
+};
+
+function airlineName(code){ return AIRLINES[code] || code; }
+function cityName(code){ return AIRPORTS[code] || code; }
+function cityAirport(code){
+  if (!code) return '???';
+  const city = AIRPORTS[code];
+  return city ? `${city} (${code})` : code;
+}
+
+// IANA timezone per airport, used for real elapsed-flight-time calculation.
+// Using named zones (not fixed UTC offsets) so DST is handled automatically and
+// correctly by the browser's built-in timezone database via Intl — no manual
+// DST-transition-date bookkeeping needed. Airports not listed here fall back to
+// the naive same-clock duration calculation.
+const AIRPORT_TZ = {
+  YYZ:'America/Toronto', YVR:'America/Vancouver', YUL:'America/Toronto', YYC:'America/Edmonton', YOW:'America/Toronto',
+  JFK:'America/New_York', EWR:'America/New_York', LGA:'America/New_York', ORD:'America/Chicago', LAX:'America/Los_Angeles',
+  SFO:'America/Los_Angeles', SEA:'America/Los_Angeles', DEN:'America/Denver', ATL:'America/New_York', MIA:'America/New_York',
+  DFW:'America/Chicago', IAH:'America/Chicago', BOS:'America/New_York', PHL:'America/New_York', IAD:'America/New_York',
+  DCA:'America/New_York', LAS:'America/Los_Angeles', PHX:'America/Phoenix', MCO:'America/New_York', CLT:'America/New_York',
+  LHR:'Europe/London', LGW:'Europe/London', LCY:'Europe/London', STN:'Europe/London', CDG:'Europe/Paris', ORY:'Europe/Paris',
+  FCO:'Europe/Rome', CIA:'Europe/Rome', MXP:'Europe/Rome', LIN:'Europe/Rome', VCE:'Europe/Rome', NAP:'Europe/Rome',
+  CTA:'Europe/Rome', PSA:'Europe/Rome', FLR:'Europe/Rome', BLQ:'Europe/Rome', TRN:'Europe/Rome', PMO:'Europe/Rome',
+  MAD:'Europe/Madrid', BCN:'Europe/Madrid', AGP:'Europe/Madrid', PMI:'Europe/Madrid', IBZ:'Europe/Madrid',
+  VLC:'Europe/Madrid', SVQ:'Europe/Madrid', BIO:'Europe/Madrid', AMS:'Europe/Amsterdam', FRA:'Europe/Berlin',
+  MUC:'Europe/Berlin', BER:'Europe/Berlin', DUS:'Europe/Berlin', HAM:'Europe/Berlin', STR:'Europe/Berlin',
+  ZRH:'Europe/Zurich', GVA:'Europe/Zurich', BSL:'Europe/Zurich', VIE:'Europe/Vienna', SZG:'Europe/Vienna',
+  DUB:'Europe/Dublin', SNN:'Europe/Dublin', LIS:'Europe/Lisbon', OPO:'Europe/Lisbon', FAO:'Europe/Lisbon',
+  ATH:'Europe/Athens', SKG:'Europe/Athens', JMK:'Europe/Athens', JTR:'Europe/Athens', HER:'Europe/Athens',
+  CHQ:'Europe/Athens', RHO:'Europe/Athens', CFU:'Europe/Athens', ZTH:'Europe/Athens', KGS:'Europe/Athens', CFY:'Europe/Athens',
+  IST:'Europe/Istanbul', SAW:'Europe/Istanbul', AYT:'Europe/Istanbul', DLM:'Europe/Istanbul', BJV:'Europe/Istanbul',
+  MLA:'Europe/Malta', LCA:'Asia/Nicosia', PFO:'Asia/Nicosia', SPU:'Europe/Zagreb', DBV:'Europe/Zagreb', ZAG:'Europe/Zagreb',
+  BEG:'Europe/Belgrade', SOF:'Europe/Sofia', OTP:'Europe/Bucharest', WAW:'Europe/Warsaw', KRK:'Europe/Warsaw',
+  GDN:'Europe/Warsaw', PRG:'Europe/Prague', BUD:'Europe/Budapest', RIX:'Europe/Riga', TLL:'Europe/Tallinn', VNO:'Europe/Vilnius',
+  HEL:'Europe/Helsinki', OSL:'Europe/Oslo', BGO:'Europe/Oslo', ARN:'Europe/Stockholm', CPH:'Europe/Copenhagen',
+  KEF:'Atlantic/Reykjavik', LYS:'Europe/Paris', NCE:'Europe/Paris', MRS:'Europe/Paris', TLS:'Europe/Paris',
+  BOD:'Europe/Paris', NTE:'Europe/Paris', RAK:'Africa/Casablanca', CMN:'Africa/Casablanca', SSH:'Africa/Cairo',
+  HRG:'Africa/Cairo', CAI:'Africa/Cairo', TLV:'Asia/Jerusalem', AMM:'Asia/Amman', BEY:'Asia/Beirut',
+  DXB:'Asia/Dubai', DWC:'Asia/Dubai', DOH:'Asia/Qatar', AUH:'Asia/Dubai', RUH:'Asia/Riyadh', JED:'Asia/Riyadh',
+  SIN:'Asia/Singapore', HKG:'Asia/Hong_Kong', MFM:'Asia/Macau', TPE:'Asia/Taipei', MNL:'Asia/Manila',
+  CGK:'Asia/Jakarta', DPS:'Asia/Makassar', KUL:'Asia/Kuala_Lumpur', HAN:'Asia/Ho_Chi_Minh', SGN:'Asia/Ho_Chi_Minh',
+  RGN:'Asia/Yangon', PNH:'Asia/Phnom_Penh', REP:'Asia/Phnom_Penh', CMB:'Asia/Colombo', KTM:'Asia/Kathmandu',
+  DEL:'Asia/Kolkata', BOM:'Asia/Kolkata', BLR:'Asia/Kolkata', MAA:'Asia/Kolkata', CCU:'Asia/Kolkata', GOI:'Asia/Kolkata',
+  NRT:'Asia/Tokyo', HND:'Asia/Tokyo', KIX:'Asia/Tokyo', NGO:'Asia/Tokyo', CTS:'Asia/Tokyo', FUK:'Asia/Tokyo',
+  ICN:'Asia/Seoul', GMP:'Asia/Seoul', PUS:'Asia/Seoul', PEK:'Asia/Shanghai', PKX:'Asia/Shanghai', PVG:'Asia/Shanghai',
+  SHA:'Asia/Shanghai', CAN:'Asia/Shanghai', SZX:'Asia/Shanghai', CTU:'Asia/Shanghai', XIY:'Asia/Shanghai',
+  BKK:'Asia/Bangkok', DMK:'Asia/Bangkok', HKT:'Asia/Bangkok', CNX:'Asia/Bangkok', USM:'Asia/Bangkok',
+  SYD:'Australia/Sydney', MEL:'Australia/Melbourne', BNE:'Australia/Brisbane', PER:'Australia/Perth', ADL:'Australia/Adelaide',
+  OOL:'Australia/Brisbane', CNS:'Australia/Brisbane', AKL:'Pacific/Auckland', WLG:'Pacific/Auckland', CHC:'Pacific/Auckland',
+  ZQN:'Pacific/Auckland', NAN:'Pacific/Fiji', PPT:'Pacific/Tahiti',
+  GRU:'America/Sao_Paulo', GIG:'America/Sao_Paulo', SDU:'America/Sao_Paulo', BSB:'America/Sao_Paulo',
+  EZE:'America/Argentina/Buenos_Aires', AEP:'America/Argentina/Buenos_Aires', SCL:'America/Santiago', LIM:'America/Lima',
+  BOG:'America/Bogota', UIO:'America/Guayaquil', CTG:'America/Bogota', MDE:'America/Bogota', PTY:'America/Panama',
+  MEX:'America/Mexico_City', CUN:'America/Cancun', SJD:'America/Mazatlan', PVR:'America/Mexico_City',
+  GDL:'America/Mexico_City', OAX:'America/Mexico_City', MID:'America/Merida', NAS:'America/Nassau',
+  PUJ:'America/Santo_Domingo', SJU:'America/Puerto_Rico', AUA:'America/Aruba', CUR:'America/Curacao',
+  MBJ:'America/Jamaica', GCM:'America/Cayman', BGI:'America/Barbados', SXM:'America/Lower_Princes', ANU:'America/Antigua'
+};
+
+// ISO country per airport, used to tell domestic connections (shorter minimum
+// connection time) from international ones (longer, due to immigration/customs).
+// Puerto Rico is treated as US since flights there are domestic under US rules.
+const AIRPORT_COUNTRY = {
+  YYZ:'CA', YVR:'CA', YUL:'CA', YYC:'CA', YOW:'CA',
+  JFK:'US', EWR:'US', LGA:'US', ORD:'US', LAX:'US', SFO:'US', SEA:'US', DEN:'US', ATL:'US', MIA:'US',
+  DFW:'US', IAH:'US', BOS:'US', PHL:'US', IAD:'US', DCA:'US', LAS:'US', PHX:'US', MCO:'US', CLT:'US', SJU:'US',
+  LHR:'GB', LGW:'GB', LCY:'GB', STN:'GB', DUB:'IE', SNN:'IE',
+  CDG:'FR', ORY:'FR', LYS:'FR', NCE:'FR', MRS:'FR', TLS:'FR', BOD:'FR', NTE:'FR',
+  FCO:'IT', CIA:'IT', MXP:'IT', LIN:'IT', VCE:'IT', NAP:'IT', CTA:'IT', PSA:'IT', FLR:'IT', BLQ:'IT', TRN:'IT', PMO:'IT',
+  MAD:'ES', BCN:'ES', AGP:'ES', PMI:'ES', IBZ:'ES', VLC:'ES', SVQ:'ES', BIO:'ES',
+  AMS:'NL', FRA:'DE', MUC:'DE', BER:'DE', DUS:'DE', HAM:'DE', STR:'DE',
+  ZRH:'CH', GVA:'CH', BSL:'CH', VIE:'AT', SZG:'AT', LIS:'PT', OPO:'PT', FAO:'PT',
+  ATH:'GR', SKG:'GR', JMK:'GR', JTR:'GR', HER:'GR', CHQ:'GR', RHO:'GR', CFU:'GR', ZTH:'GR', KGS:'GR', CFY:'GR',
+  IST:'TR', SAW:'TR', AYT:'TR', DLM:'TR', BJV:'TR', MLA:'MT', LCA:'CY', PFO:'CY',
+  SPU:'HR', DBV:'HR', ZAG:'HR', BEG:'RS', SOF:'BG', OTP:'RO', WAW:'PL', KRK:'PL', GDN:'PL',
+  PRG:'CZ', BUD:'HU', RIX:'LV', TLL:'EE', VNO:'LT', HEL:'FI', OSL:'NO', BGO:'NO', ARN:'SE', CPH:'DK', KEF:'IS',
+  RAK:'MA', CMN:'MA', SSH:'EG', HRG:'EG', CAI:'EG', TLV:'IL', AMM:'JO', BEY:'LB',
+  DXB:'AE', DWC:'AE', AUH:'AE', DOH:'QA', RUH:'SA', JED:'SA',
+  SIN:'SG', HKG:'HK', MFM:'MO', TPE:'TW', MNL:'PH', CGK:'ID', DPS:'ID', KUL:'MY',
+  HAN:'VN', SGN:'VN', RGN:'MM', PNH:'KH', REP:'KH', CMB:'LK', KTM:'NP',
+  DEL:'IN', BOM:'IN', BLR:'IN', MAA:'IN', CCU:'IN', GOI:'IN',
+  NRT:'JP', HND:'JP', KIX:'JP', NGO:'JP', CTS:'JP', FUK:'JP',
+  ICN:'KR', GMP:'KR', PUS:'KR', PEK:'CN', PKX:'CN', PVG:'CN', SHA:'CN', CAN:'CN', SZX:'CN', CTU:'CN', XIY:'CN',
+  BKK:'TH', DMK:'TH', HKT:'TH', CNX:'TH', USM:'TH',
+  SYD:'AU', MEL:'AU', BNE:'AU', PER:'AU', ADL:'AU', OOL:'AU', CNS:'AU',
+  AKL:'NZ', WLG:'NZ', CHC:'NZ', ZQN:'NZ', NAN:'FJ', PPT:'PF',
+  GRU:'BR', GIG:'BR', SDU:'BR', BSB:'BR', EZE:'AR', AEP:'AR', SCL:'CL', LIM:'PE',
+  BOG:'CO', UIO:'EC', CTG:'CO', MDE:'CO', PTY:'PA',
+  MEX:'MX', CUN:'MX', SJD:'MX', PVR:'MX', GDL:'MX', OAX:'MX', MID:'MX',
+  NAS:'BS', PUJ:'DO', AUA:'AW', CUR:'CW', MBJ:'JM', GCM:'KY', BGI:'BB', SXM:'SX', ANU:'AG'
+};
+
+// General industry convention for booking-class letter -> cabin. Individual airlines
+// configure this differently, so treat this as a best-effort label, not a guarantee.
+const CABIN_MAP = {
+  F:'First', A:'First', P:'First',
+  J:'Business', C:'Business', D:'Business', I:'Business', Z:'Business', R:'Business',
+  W:'Premium Economy', E:'Premium Economy',
+  Y:'Economy', B:'Economy', M:'Economy', H:'Economy', K:'Economy', L:'Economy',
+  Q:'Economy', T:'Economy', X:'Economy', V:'Economy', S:'Economy', N:'Economy',
+  O:'Economy', G:'Economy', U:'Economy'
+};
+function cabinFromClass(code){
+  if (!code) return '';
+  return CABIN_MAP[code.trim().toUpperCase()] || '';
+}
+
+function operatingCarrier(seg){
+  // Explicit "operated by" text if the PNR had one; otherwise the marketing
+  // airline (the one whose flight number is on the flight) is the operator.
+  return seg.operatedBy || airlineName(seg.airline||'');
+}
+
+/* ============================================================
+   PARSER — best-effort line classification + field extraction
+   ============================================================ */
+const MONTHS = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+
+function detectSource(text){
+  const t = text.toUpperCase();
+  // HK/SS/etc. status codes are standard IATA codes used by both GDSs — not
+  // diagnostic on their own. The only reliably distinguishing marker is the
+  // ticketing-reference format: Sabre's "/DC<code>*<ref>" vs Amadeus's trailing
+  // "E <code>/<ref>".
+  const hasSabreRef = /\/DC[A-Z0-9]{2}\*/.test(t);
+  const hasAmadeusRef = /\bE\s+[A-Z0-9]{2}\/[A-Z0-9]{4,8}\b/.test(t);
+  if (hasSabreRef && !hasAmadeusRef) return 'sabre';
+  if (hasAmadeusRef && !hasSabreRef) return 'amadeus';
+  return 'sabre'; // ambiguous or no markers found — default guess, doesn't affect parsing
+}
+
+function ddmmmToLabel(ddmmm){
+  const m = ddmmm.match(/^(\d{1,2})([A-Z]{3})(\d{2,4})?$/);
+  if (!m) return ddmmm;
+  const day = m[1], mon = m[2];
+  return `${day} ${mon.charAt(0)}${mon.slice(1).toLowerCase()}`;
+}
+
+function normTime(raw){
+  if (!raw) return '';
+  let s = raw.replace(/[^0-9AP+]/gi,'').toUpperCase();
+  let nextDay = s.includes('+');
+  s = s.replace('+','');
+  let ap = '';
+  if (/[AP]$/.test(s)){ ap = s.slice(-1); s = s.slice(0,-1); }
+  let digits = s.padStart(4,'0');
+  let hh = parseInt(digits.slice(0,2),10);
+  let mm = digits.slice(2,4);
+  if (ap === 'P' && hh !== 12) hh += 12;
+  if (ap === 'A' && hh === 12) hh = 0;
+  let hhStr = String(hh).padStart(2,'0');
+  return `${hhStr}:${mm}` + (nextDay ? ' (+1d)' : '');
+}
+
+function newSeg(type){
+  return { id: idCounter++, type };
+}
+
+function parseAirLine(line){
+  // Tolerant pattern for typical Sabre / Amadeus itinerary lines, e.g.:
+  // "1 UA 456 Y 12AUG 3 ORDLAX HK1  815A 1042A"
+  // "2 DL2180 Z 16OCT 5*MSYATL HK1 602P 835P 16OCT E DL/GU2UFT"
+  // "2 DL9375Z 16OCT F ATLAMS SS1 1040P 110P 17OCT J /DCDL /E"
+  // Next-day arrivals aren't flagged with "+1" in real itinerary displays (that's
+  // an availability-search-only convention) — instead a trailing arrival date
+  // appears after the arrival time, which we capture and compare to the
+  // departure date ourselves.
+  const re = /(\b[A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{1,2}[A-Z]{3})\d{0,2}\s*(?:\d|[A-Z])?\*?\s*([A-Z]{3})([A-Z]{3})\*?\s*[A-Z]{2}\d+\s+(\d{1,4}[AP]?M?)\s*(\d{1,4}[AP]?M?)(?:\s+(\d{1,2}[A-Z]{3}))?/i;
+  const m = line.toUpperCase().match(re);
+  if (!m) return null;
+  const seg = newSeg('flight');
+  seg.airline = m[1].trim();
+  seg.flightNo = m[2].trim();
+  seg.bookingClass = m[3] || '';
+  seg.date = ddmmmToLabel(m[4]);
+  seg.from = m[5];
+  seg.to = m[6];
+  seg.depTime = normTime(m[7]);
+  seg.arrTime = normTime(m[8]);
+  if (m[9]){
+    const arrDateLabel = ddmmmToLabel(m[9]);
+    if (arrDateLabel !== seg.date) seg.arrTime += ' (+1d)';
+  }
+  // Sabre: reference follows /DC<airline>*<ref>  e.g. /DCUA*ABC123
+  const sabreRef = line.match(/\/DC[A-Z0-9]{2}\*([A-Z0-9]{3,8})/i);
+  // Amadeus: reference follows "E <airline>/<ref>"  e.g. E AF/ABCDEF
+  const amadeusRef = line.match(/\bE\s+[A-Z0-9]{2}\/([A-Z0-9]{3,8})\b/i);
+  seg.airlineRef = sabreRef ? sabreRef[1] : (amadeusRef ? amadeusRef[1] : '');
+  seg.operatedBy = '';
+  return seg;
+}
+
+function parseHotelLine(line){
+  const upper = line.toUpperCase();
+  if (!/HTL|HOTEL|MARRIOTT|HILTON|HYATT|SHERATON|WESTIN|IHG|ACCOR/.test(upper)) return null;
+  const seg = newSeg('hotel');
+  const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
+  if (dateRange){ seg.checkIn = ddmmmToLabel(dateRange[1]); seg.checkOut = ddmmmToLabel(dateRange[2]); }
+  const cityM = upper.match(/\b([A-Z]{3})\b\s+[A-Z]{2}\b/) || upper.match(/HOTEL\s+([A-Z ]{3,})/);
+  seg.city = cityM ? (cityM[1].length===3 ? cityName(cityM[1]) : cityM[1].trim()) : '';
+  const confM = upper.match(/CONF[-:]?\s*([A-Z0-9]{4,10})/) || upper.match(/\/([A-Z0-9]{6,10})\b/);
+  seg.confirmation = confM ? confM[1] : '';
+  const nameM = line.match(/^\s*\d+\s+([A-Za-z0-9&' \.]{3,40})/);
+  seg.name = nameM ? nameM[1].trim() : 'Hotel';
+  return seg;
+}
+
+function parseCarLine(line){
+  const upper = line.toUpperCase();
+  if (!/\bCAR\b|HERTZ|AVIS|BUDGET|NATIONAL|ENTERPRISE|SIXT|ALAMO|DOLLAR|THRIFTY/.test(upper)) return null;
+  const seg = newSeg('car');
+  const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
+  if (dateRange){ seg.pickupDate = ddmmmToLabel(dateRange[1]); seg.dropoffDate = ddmmmToLabel(dateRange[2]); }
+  const locM = upper.match(/\b([A-Z]{3})\b/);
+  seg.location = locM ? cityName(locM[1]) : '';
+  const vendorM = upper.match(/HERTZ|AVIS|BUDGET|NATIONAL|ENTERPRISE|SIXT|ALAMO|DOLLAR|THRIFTY/);
+  seg.vendor = vendorM ? vendorM[0].charAt(0)+vendorM[0].slice(1).toLowerCase() : 'Car rental';
+  const confM = upper.match(/CONF[-:]?\s*([A-Z0-9]{4,10})/) || upper.match(/\/([A-Z0-9]{6,10})\b/);
+  seg.confirmation = confM ? confM[1] : '';
+  return seg;
+}
+
+function parseRailLine(line){
+  const upper = line.toUpperCase();
+  if (!/\bRAIL\b|TRAIN|EUROSTAR|AMTRAK|SNCF|TRENITALIA|VIA RAIL/.test(upper)) return null;
+  const seg = newSeg('rail');
+  const dateM = upper.match(/(\d{1,2}[A-Z]{3})/);
+  if (dateM) seg.date = ddmmmToLabel(dateM[1]);
+  const routeM = upper.match(/\b([A-Z]{3})([A-Z]{3})\b/);
+  if (routeM){ seg.from = cityName(routeM[1]); seg.to = cityName(routeM[2]); }
+  const vendorM = upper.match(/EUROSTAR|AMTRAK|SNCF|TRENITALIA|VIA RAIL/);
+  seg.vendor = vendorM ? vendorM[0].charAt(0)+vendorM[0].slice(1).toLowerCase() : 'Rail';
+  seg.confirmation = '';
+  return seg;
+}
+
+function parseRecord(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const found = [];
+  lines.forEach(line=>{
+    const opByM = line.match(/^\/?\s*OPERATED\s*BY[\s:\-\/]*(.+)$/i) || line.match(/\bOPBY[\s:\-\/]*([A-Z0-9 .&'\/]{3,40})/i);
+    if (opByM && found.length && found[found.length-1].type === 'flight'){
+      found[found.length-1].operatedBy = opByM[1].trim().replace(/^[\/:\-\s]+/,'').replace(/\s+/g,' ');
+      return;
+    }
+    // Some Sabre displays put the ticketing reference on its own indented
+    // continuation line below the flight line (e.g. "/DCAA*KUHYTI /E") rather
+    // than inline — catch that and attach it to the previous flight segment.
+    const bareRefM = line.match(/^\/DC[A-Z0-9]{2}\*([A-Z0-9]{3,8})/i);
+    if (bareRefM && found.length && found[found.length-1].type === 'flight' && !found[found.length-1].airlineRef){
+      found[found.length-1].airlineRef = bareRefM[1];
+      return;
+    }
+    // Passenger name lines (e.g. "1.1SOMOGYI/RON BARRY" in Sabre or
+    // "1.KELLY/ALYSE IVY" in Amadeus) are parsed separately — skip here so they
+    // don't get mis-attempted as a flight/hotel/car/rail line.
+    if (/^\d+\.(?:I\/)?\d*[A-Z]+\//.test(line)) return;
+    if (!/^\d+\.?\s/.test(line) && !/[A-Z]{3}[A-Z]{3}/.test(line) && !/HTL|HOTEL|CAR\b|RAIL|TRAIN/i.test(line)) return;
+    let seg = parseAirLine(line) || parseHotelLine(line) || parseCarLine(line) || parseRailLine(line);
+    if (seg) found.push(seg);
+  });
+  return found;
+}
+
+function toTitleCase(str){
+  return str.toLowerCase().replace(/(^|[\s\-'])\S/g, c => c.toUpperCase());
+}
+
+function parsePassengerNames(text){
+  // Sabre:   "1.1SOMOGYI/RON BARRY  2.1SOMOGYI/ORA"  (index . qty SURNAME/GIVEN)
+  //          "4.I/1KILLIN/BRUCE DANIEL"  — infant: "I/" appears between the dot and qty digit
+  // Amadeus: "1.KELLY/ALYSE IVY   2.KELLY/BROOKE LAUREN"  (index . SURNAME/GIVEN, no qty digit)
+  //          "2.VOLOKHOVA/KHANA(INFDUBOVITSKI/RUT/24JUN26)"  — infant traveling with an adult, noted in ()
+  //          "4.BROWN/TUCKER PRESCOTT(CHD/28JUN22)"  — child, noted in ()
+  // Both can wrap across multiple lines, and multiple passengers can share a line.
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const nameLineRe = /^\d+\.(?:I\/)?\d*[A-Z]+\//;
+  const names = [];
+  lines.forEach(line=>{
+    if (!nameLineRe.test(line)) return;
+    const re = /\d+\.(?:I\/)?\d*([A-Z][A-Z\-']*)\/([A-Z][A-Z\-' ]*?)\s*(?:\([^)]*\))?(?=\s{2,}\d+\.|$)/g;
+    let m;
+    while ((m = re.exec(line)) !== null){
+      const surname = toTitleCase(m[1]);
+      const given = toTitleCase(m[2].trim());
+      const full = `${given} ${surname}`;
+      if (!names.includes(full)) names.push(full);
+    }
+  });
+  return names;
+}
+
+/* ============================================================
+   SEGMENT FIELD SCHEMAS (for rendering editable forms)
+   ============================================================ */
+const SCHEMAS = {
+  flight: [
+    ['airline','Airline code','AA'], ['flightNo','Flight #','1234'], ['bookingClass','Class','Y'],
+    ['date','Date','12AUG'], ['from','From (code)','JFK'], ['to','To (code)','LAX'],
+    ['depTime','Depart time (24hr)','08:15'], ['arrTime','Arrive time (24hr)','22:40'],
+    ['airlineRef','Airline reference','ABC123'], ['operatedBy','Operated by',''], ['terminal','Terminal / gate','T4']
+  ],
+  hotel: [
+    ['name','Hotel name','The Ritz-Carlton'], ['city','City','Rome'],
+    ['checkIn','Check-in','12 Aug'], ['checkOut','Check-out','15 Aug'],
+    ['confirmation','Confirmation #','H12345'], ['address','Address','']
+  ],
+  car: [
+    ['vendor','Rental company','Hertz'], ['location','Pickup city','Los Angeles'],
+    ['pickupDate','Pickup date','12 Aug'], ['dropoffDate','Drop-off date','15 Aug'],
+    ['confirmation','Confirmation #','C98213']
+  ],
+  rail: [
+    ['vendor','Rail line','Eurostar'], ['from','From city','Paris'], ['to','To city','London'],
+    ['date','Date','12 Aug'], ['depTime','Depart time (24hr)','09:01'], ['arrTime','Arrive time (24hr)','10:24'],
+    ['confirmation','Confirmation #','R55211']
+  ]
+};
+
+const TYPE_LABEL = { flight:'Flight', hotel:'Hotel', car:'Car', rail:'Rail' };
+
+/* ============================================================
+   RENDER — segment editor cards
+   ============================================================ */
+function renderSegEditor(){
+  els.segList.innerHTML = '';
+  els.segEmpty.style.display = segments.length ? 'none' : 'block';
+  els.segCount.textContent = segments.length ? `(${segments.length})` : '';
+
+  segments.forEach(seg=>{
+    const card = document.createElement('div');
+    card.className = `seg-card ${seg.type}`;
+    const head = document.createElement('div');
+    head.className = 'seg-head';
+    head.innerHTML = `<span class="seg-type-tag">${TYPE_LABEL[seg.type]}</span>`;
+    const rm = document.createElement('button');
+    rm.className = 'seg-remove';
+    rm.textContent = '✕';
+    rm.onclick = ()=>{ segments = segments.filter(s=>s.id!==seg.id); renderAll(); };
+    head.appendChild(rm);
+    card.appendChild(head);
+
+    const fieldsWrap = document.createElement('div');
+    fieldsWrap.className = 'seg-fields';
+    SCHEMAS[seg.type].forEach(([key,label,placeholder])=>{
+      const fld = document.createElement('div');
+      fld.className = 'fld' + (key==='address' ? ' full' : '');
+      const lab = document.createElement('label');
+      lab.textContent = label;
+      const inp = document.createElement('input');
+      inp.value = seg[key] || '';
+      inp.placeholder = placeholder;
+      inp.oninput = (e)=>{ seg[key] = e.target.value; renderDoc(); };
+      fld.appendChild(lab); fld.appendChild(inp);
+      fieldsWrap.appendChild(fld);
+    });
+    card.appendChild(fieldsWrap);
+    els.segList.appendChild(card);
+  });
+}
+
+document.querySelectorAll('[data-add]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    segments.push(newSeg(btn.dataset.add));
+    renderAll();
+  });
+});
+
+function parseSegmentRange(str, maxLen){
+  // "1-3,5" -> [0,1,2,4] (0-based, deduped, sorted, clamped to valid range)
+  if (!str) return [];
+  const indexes = new Set();
+  str.split(',').forEach(part=>{
+    part = part.trim();
+    if (!part) return;
+    const rangeM = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeM){
+      let a = parseInt(rangeM[1],10), b = parseInt(rangeM[2],10);
+      if (a > b) [a,b] = [b,a];
+      for (let i=a; i<=b; i++) indexes.add(i-1);
+    } else {
+      const n = parseInt(part,10);
+      if (!isNaN(n)) indexes.add(n-1);
+    }
+  });
+  return [...indexes].filter(i => i>=0 && i<maxLen).sort((a,b)=>a-b);
+}
+
+function addExchangeOption(){
+  exchangeOptions.push({ id: optionIdCounter++, segmentsInput:'', fareDiff:'', penalty:'' });
+  renderExchangeOptionsEditor();
+  renderDoc();
+}
+
+function renderExchangeOptionsEditor(){
+  els.optionsList.innerHTML = '';
+  exchangeOptions.forEach((opt, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'seg-card';
+    card.style.borderLeftColor = '#21456D';
+    const head = document.createElement('div');
+    head.className = 'seg-head';
+    head.innerHTML = `<span class="seg-type-tag">Option ${idx+1}</span>`;
+    const rm = document.createElement('button');
+    rm.className = 'seg-remove';
+    rm.textContent = '✕';
+    rm.onclick = ()=>{ exchangeOptions = exchangeOptions.filter(o=>o.id!==opt.id); renderExchangeOptionsEditor(); renderDoc(); };
+    head.appendChild(rm);
+    card.appendChild(head);
+
+    const fieldsWrap = document.createElement('div');
+    fieldsWrap.className = 'seg-fields';
+
+    const fieldDefs = [
+      ['segmentsInput', 'Segments (e.g. 1-3 or 1,3)', 'e.g. 1-3', true],
+      ['fareDiff', 'Fare diff per person', 'e.g. 150', false],
+      ['penalty', 'Penalty per person', 'e.g. 200', false]
+    ];
+    fieldDefs.forEach(([key,label,placeholder,full])=>{
+      const fld = document.createElement('div');
+      fld.className = 'fld' + (full ? ' full' : '');
+      const lab = document.createElement('label');
+      lab.textContent = label;
+      const inp = document.createElement('input');
+      inp.value = opt[key] || '';
+      inp.placeholder = placeholder;
+      inp.oninput = (e)=>{ opt[key] = e.target.value; renderDoc(); };
+      fld.appendChild(lab); fld.appendChild(inp);
+      fieldsWrap.appendChild(fld);
+    });
+    card.appendChild(fieldsWrap);
+    els.optionsList.appendChild(card);
+  });
+}
+
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+function parseTimeToMinutes(str){
+  if (!str) return null;
+  const dayOffset = /\+1/.test(str) ? 1 : 0;
+  const m = str.match(/(\d{1,2}):(\d{2})\s*([AP]M)?/i);
+  if (!m) return null;
+  let hh = parseInt(m[1],10);
+  const mm = parseInt(m[2],10);
+  const ap = m[3] ? m[3].toUpperCase() : null;
+  if (ap === 'PM' && hh !== 12) hh += 12;
+  if (ap === 'AM' && hh === 12) hh = 0;
+  return hh*60 + mm + dayOffset*1440;
+}
+
+function dayOrdinalFromLabel(label){
+  // "12 Aug" -> rough ordinal for same-year day-difference comparisons only
+  if (!label) return null;
+  const m = label.match(/(\d{1,2})\s+([A-Za-z]{3})/);
+  if (!m) return null;
+  const mon = m[2].toUpperCase();
+  if (!(mon in MONTHS)) return null;
+  return MONTHS[mon]*31 + parseInt(m[1],10);
+}
+
+function isDomesticConnection(prevSeg, nextSeg){
+  const cFrom = AIRPORT_COUNTRY[(prevSeg.from||'').toUpperCase()];
+  const cArr = AIRPORT_COUNTRY[(prevSeg.to||'').toUpperCase()];
+  const cDep = AIRPORT_COUNTRY[(nextSeg.from||'').toUpperCase()];
+  const cTo = AIRPORT_COUNTRY[(nextSeg.to||'').toUpperCase()];
+  if (!cFrom || !cArr || !cDep || !cTo) return null; // unknown — can't classify
+  return cFrom === cArr && cArr === cDep && cDep === cTo;
+}
+
+function connectionLayover(prevSeg, nextSeg){
+  if (!prevSeg || !nextSeg) return null;
+  if (prevSeg.type !== 'flight' || nextSeg.type !== 'flight') return null;
+  if (!prevSeg.to || !nextSeg.from) return null;
+  const arrCode = prevSeg.to.toUpperCase(), depCode = nextSeg.from.toUpperCase();
+  const sameAirport = arrCode === depCode;
+  // Same city, different airport (e.g. arrive JFK, depart EWR) — still a
+  // connection under the same <=24h rule, but needs its own warning since it
+  // requires ground transport between airports, not just a terminal transfer.
+  const sameCity = !sameAirport && cityName(arrCode) === cityName(depCode);
+  if (!sameAirport && !sameCity) return null;
+  const airportChange = sameCity;
+
+  // Only treat as a "connection" (same-day or overnight, <=24h) — longer gaps are stopovers, not connections
+  const dayDiff = (dayOrdinalFromLabel(nextSeg.date) !== null && dayOrdinalFromLabel(prevSeg.date) !== null)
+    ? dayOrdinalFromLabel(nextSeg.date) - dayOrdinalFromLabel(prevSeg.date)
+    : null;
+  if (dayDiff !== null && (dayDiff < 0 || dayDiff > 1)) return null;
+  const arr = parseTimeToMinutes(prevSeg.arrTime);
+  const dep = parseTimeToMinutes(nextSeg.depTime);
+  const domestic = isDomesticConnection(prevSeg, nextSeg);
+  if (arr === null || dep === null) return { arrivalAirport: arrCode, departureAirport: depCode, minutes: null, domestic, short: false, airportChange };
+  let diff = dep - arr;
+  if (diff < 0) diff += 1440;
+  if (diff > 1440) return null; // safety cap — treat as stopover, not a connection
+  // Minimum connection time: 60 min domestic, 90 min international. If we can't
+  // tell (unknown airport), default to the more cautious international threshold.
+  const thresholdMin = domestic === true ? 60 : 90;
+  const short = diff < thresholdMin;
+  return { arrivalAirport: arrCode, departureAirport: depCode, minutes: diff, domestic, short, airportChange };
+}
+
+function formatLayover(mins){
+  if (mins === null) return null;
+  const h = Math.floor(mins/60), m = mins%60;
+  return (h>0 ? h+'h ' : '') + (m>0 || h===0 ? m+'m' : '');
+}
+
+// Palette for leg color-banding — green (brand) first, then contrasting accents for
+// additional legs beyond a simple round trip (multi-city itineraries).
+const LEG_COLORS = ['#00593F', '#F4663B', '#21456D', '#00241A'];
+
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function computeLegs(segs){
+  // A new "leg" starts whenever a flight isn't a direct connection to the previous
+  // flight (i.e. connectionLayover returns null between them) — that's the point a
+  // trip turns around (outbound -> inbound) or a multi-city itinerary moves on.
+  let legIndex = 1;
+  let lastFlight = null;
+  return segs.map(seg=>{
+    if (seg.type === 'flight'){
+      if (lastFlight){
+        const layover = connectionLayover(lastFlight, seg);
+        if (!layover) legIndex++;
+      }
+      lastFlight = seg;
+    }
+    return legIndex;
+  });
+}
+
+function legLabel(legNum, totalLegs){
+  if (totalLegs === 2) return legNum === 1 ? 'Outbound' : 'Inbound';
+  return `Leg ${legNum}`;
+}
+
+function assumedYearFor(monthIdx, day){
+  // Dates in this app carry no year (parsed from "12AUG" style tokens), so assume
+  // the nearest future occurrence of that month/day relative to today.
+  const now = new Date();
+  const candidate = new Date(Date.UTC(now.getFullYear(), monthIdx, day));
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  return candidate < today ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+function monthDayFromLabel(label){
+  // "16 Oct" -> { day: 16, monthIdx: 9 }
+  if (!label) return null;
+  const m = label.match(/(\d{1,2})\s+([A-Za-z]{3})/);
+  if (!m) return null;
+  const mon = m[2].toUpperCase();
+  if (!(mon in MONTHS)) return null;
+  return { day: parseInt(m[1],10), monthIdx: MONTHS[mon] };
+}
+
+function getUtcOffsetMinutes(timeZone, utcInstantMs){
+  // Format a known UTC instant in the target timezone, then reinterpret those
+  // wall-clock components as if they were UTC — the difference is the offset.
+  // This correctly reflects DST for that specific date since it uses the
+  // browser's built-in IANA timezone database via Intl.
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone, hour12:false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+  const parts = dtf.formatToParts(new Date(utcInstantMs)).reduce((acc,p)=>{ acc[p.type]=p.value; return acc; }, {});
+  const hh = parts.hour === '24' ? 0 : parseInt(parts.hour,10);
+  const asUTC = Date.UTC(parseInt(parts.year,10), parseInt(parts.month,10)-1, parseInt(parts.day,10), hh, parseInt(parts.minute,10), parseInt(parts.second,10));
+  return (asUTC - utcInstantMs) / 60000;
+}
+
+function localWallClockToUtcMillis(year, monthIdx, day, hh, mm, timeZone){
+  const guess = Date.UTC(year, monthIdx, day, hh, mm);
+  const offset = getUtcOffsetMinutes(timeZone, guess);
+  return guess - offset*60000;
+}
+
+function flightDurationTZAware(seg){
+  const depTz = AIRPORT_TZ[(seg.from||'').toUpperCase()];
+  const arrTz = AIRPORT_TZ[(seg.to||'').toUpperCase()];
+  const depDate = monthDayFromLabel(seg.date);
+  const depMin = parseTimeToMinutes(seg.depTime);
+  const arrMin = parseTimeToMinutes(seg.arrTime); // may already include +1440 from a detected "(+1d)"
+  if (!depTz || !arrTz || !depDate || depMin === null || arrMin === null) return null;
+
+  const year = assumedYearFor(depDate.monthIdx, depDate.day);
+  const depHH = Math.floor(depMin/60), depMM = depMin%60;
+  const arrDayOffset = Math.floor(arrMin/1440);
+  const arrMinOfDay = arrMin % 1440;
+  const arrHH = Math.floor(arrMinOfDay/60), arrMM = arrMinOfDay%60;
+
+  const depUtcMs = localWallClockToUtcMillis(year, depDate.monthIdx, depDate.day, depHH, depMM, depTz);
+  const arrUtcMs = localWallClockToUtcMillis(year, depDate.monthIdx, depDate.day + arrDayOffset, arrHH, arrMM, arrTz);
+
+  const diffMin = Math.round((arrUtcMs - depUtcMs) / 60000);
+  if (diffMin < 0 || diffMin > 24*60) return null; // sanity guard — fall back to naive calc
+  return formatLayover(diffMin);
+}
+
+function flightDuration(seg){
+  const tzAware = flightDurationTZAware(seg);
+  if (tzAware) return tzAware;
+  // Fallback for airports without known timezones: naive same-clock math.
+  const dep = parseTimeToMinutes(seg.depTime);
+  const arr = parseTimeToMinutes(seg.arrTime);
+  if (dep === null || arr === null) return null;
+  let diff = arr - dep;
+  if (diff < 0) diff += 1440;
+  return formatLayover(diff);
+}
+
+function iconBadge(innerHtml, bg){
+  return `<span style="display:inline-flex;width:32px;height:32px;border-radius:8px;background:${bg};align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${innerHtml}</span>`;
+}
+
+// A curated palette so the fallback badge (used only if both logo image sources
+// fail to load) is colorful and distinct per airline rather than a flat gray.
+function shadeColor(hex, percent){
+  // percent negative = darker, positive = lighter
+  const h = hex.replace('#','');
+  let r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  const target = percent < 0 ? 0 : 255;
+  const p = Math.abs(percent) / 100;
+  r = Math.round((target - r) * p) + r;
+  g = Math.round((target - g) * p) + g;
+  b = Math.round((target - b) * p) + b;
+  const clamp = v => Math.max(0, Math.min(255, v));
+  return '#' + [clamp(r), clamp(g), clamp(b)].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+// Brand colors dark enough for white badge text on their own (Forest Green,
+// Ocean Blue, Black, Sunset Red), plus darkened variants of the lighter
+// secondaries (Grass Green, Sand Yellow, Sky Blue) so they stay legible too.
+const BADGE_PALETTE = [
+  '#00593F', '#21456D', '#00241A', '#F4663B',
+  shadeColor('#71C08A', -40), shadeColor('#FCC154', -40), shadeColor('#8AC6E2', -40)
+];
+
+function badgeColorForCode(code){
+  if (!code) return '#21456D';
+  let hash = 0;
+  for (let i=0; i<code.length; i++){ hash = code.charCodeAt(i) + ((hash<<5)-hash); }
+  return BADGE_PALETTE[Math.abs(hash) % BADGE_PALETTE.length];
+}
+
+function airlineLogoImg(code){
+  const safe = (code||'').trim().toUpperCase();
+  const badgeBg = badgeColorForCode(safe);
+  const fallback = `<span style="display:none;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:11px;font-weight:600;color:#ffffff;background:${badgeBg};">${escapeHtml(safe || '✈')}</span>`;
+  const img = safe
+    ? `<img src="https://www.gstatic.com/flights/airline_logos/70px/${safe}.png" data-fallback2="https://images.kiwi.com/airlines/64/${safe}.png" alt="${escapeHtml(safe)}" width="32" height="32" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="if(this.dataset.fallback2){this.src=this.dataset.fallback2;this.removeAttribute('data-fallback2');}else{this.style.display='none';this.nextElementSibling.style.display='flex';}">`
+    : '';
+  return iconBadge(img + fallback, '#eef1f5');
+}
+
+function typeIcon(glyph, bg){
+  return iconBadge(`<span style="font-size:15px;line-height:1;">${glyph}</span>`, bg);
+}
+
+function segRowData(seg){
+  // Returns {date, main, departure, arrival} for the simple table / email copy
+  const muted = 'color:#667788;font-size:12px;';
+  if (seg.type === 'flight'){
+    const duration = flightDuration(seg);
+    const main = `
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        ${airlineLogoImg(seg.airline)}
+        <div>
+          <div style="font-weight:600;">${escapeHtml(airlineName(seg.airline||''))} ${escapeHtml(seg.flightNo||'')}${seg.bookingClass ? ` <span style="font-weight:normal;${muted}">${cabinFromClass(seg.bookingClass) ? escapeHtml(cabinFromClass(seg.bookingClass)) + ' ' : ''}(${escapeHtml(seg.bookingClass)} Class)</span>`:''}</div>
+          <div style="${muted}">Operated by ${escapeHtml(operatingCarrier(seg))}</div>
+          <div style="${muted}">${escapeHtml(cityAirport(seg.from))} \u2192 ${escapeHtml(cityAirport(seg.to))}${duration ? ' \u2014 ' + escapeHtml(duration) + ' flight' : ''}</div>
+          ${seg.airlineRef ? `<div style="${muted}">Reference: ${escapeHtml(seg.airlineRef)}</div>` : ''}
+        </div>
+      </div>`;
+    return {
+      date: seg.date || '',
+      main,
+      departure: `${escapeHtml(seg.depTime||'—')}${seg.terminal ? `<br><span style="${muted}">Terminal ${escapeHtml(seg.terminal)}</span>` : ''}`,
+      arrival: escapeHtml(seg.arrTime||'—')
+    };
+  }
+  if (seg.type === 'hotel'){
+    const main = `
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        ${typeIcon('⌂', shadeColor('#8AC6E2', 78))}
+        <div>
+          <div style="font-weight:600;">${escapeHtml(seg.name||'Hotel')}</div>
+          ${seg.city ? `<div style="${muted}">${escapeHtml(seg.city)}</div>` : ''}
+          ${seg.address ? `<div style="${muted}">${escapeHtml(seg.address)}</div>` : ''}
+          ${seg.confirmation ? `<div style="${muted}">Reference: ${escapeHtml(seg.confirmation)}</div>` : ''}
+        </div>
+      </div>`;
+    return {
+      date: [seg.checkIn, seg.checkOut].filter(Boolean).join(' – '),
+      main,
+      departure: seg.checkIn ? 'Check-in '+escapeHtml(seg.checkIn) : '',
+      arrival: seg.checkOut ? 'Check-out '+escapeHtml(seg.checkOut) : ''
+    };
+  }
+  if (seg.type === 'car'){
+    const main = `
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        ${typeIcon('⚿', shadeColor('#F4663B', 82))}
+        <div>
+          <div style="font-weight:600;">${escapeHtml(seg.vendor||'Car rental')}</div>
+          ${seg.location ? `<div style="${muted}">${escapeHtml(seg.location)}</div>` : ''}
+          ${seg.confirmation ? `<div style="${muted}">Reference: ${escapeHtml(seg.confirmation)}</div>` : ''}
+        </div>
+      </div>`;
+    return {
+      date: [seg.pickupDate, seg.dropoffDate].filter(Boolean).join(' – '),
+      main,
+      departure: seg.pickupDate ? 'Pick-up '+escapeHtml(seg.pickupDate) : '',
+      arrival: seg.dropoffDate ? 'Drop-off '+escapeHtml(seg.dropoffDate) : ''
+    };
+  }
+  // rail
+  const main = `
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      ${typeIcon('⛯', shadeColor('#71C08A', 78))}
+      <div>
+        <div style="font-weight:600;">${escapeHtml(seg.vendor||'Rail')}</div>
+        <div style="${muted}">${escapeHtml(cityAirport(seg.from))} \u2192 ${escapeHtml(cityAirport(seg.to))}</div>
+        ${seg.confirmation ? `<div style="${muted}">Reference: ${escapeHtml(seg.confirmation)}</div>` : ''}
+      </div>
+    </div>`;
+  return {
+    date: seg.date || '',
+    main,
+    departure: escapeHtml(seg.depTime||''),
+    arrival: escapeHtml(seg.arrTime||'')
+  };
+}
+
+function buildEmailTableHtml(segList){
+  const segs = segList || segments;
+  const legAssignments = computeLegs(segs);
+  const totalLegs = legAssignments.length ? Math.max(...legAssignments) : 0;
+  const showLegs = totalLegs >= 2;
+
+  let rowsHtml = '';
+  let currentLeg = null;
+  segs.forEach((seg, i)=>{
+    const legNum = legAssignments[i];
+    const legColor = showLegs ? LEG_COLORS[(legNum-1) % LEG_COLORS.length] : null;
+    const tint = legColor ? hexToRgba(legColor, 0.05) : '#ffffff';
+    const leftBorder = legColor ? `border-left:3px solid ${legColor};` : '';
+    const isLegStart = showLegs && legNum !== currentLeg;
+    if (isLegStart) currentLeg = legNum;
+    const topRule = (isLegStart && legNum > 1) ? `border-top:2px solid ${legColor};` : '';
+
+    const layover = connectionLayover(segs[i-1], seg);
+    if (layover){
+      const cityLabel = cityName(layover.arrivalAirport);
+      let label = layover.airportChange
+        ? `Connection in ${escapeHtml(cityLabel)}`
+        : `Connection in ${escapeHtml(cityLabel)} (${escapeHtml(layover.arrivalAirport)})`;
+      if (layover.minutes !== null) label += ` — ${formatLayover(layover.minutes)}`;
+      const warnings = [];
+      if (layover.airportChange) warnings.push('Airport change required');
+      if (layover.short) warnings.push(`Short connection${layover.domestic === false ? ' (international)' : ''}`);
+      const warning = warnings.length ? ` <strong style="color:#F4663B;">— ${warnings.map(escapeHtml).join(' · ')}</strong>` : '';
+      const arriveDepart = layover.airportChange
+        ? ` — arrive ${escapeHtml(layover.arrivalAirport)}, depart ${escapeHtml(layover.departureAirport)}`
+        : '';
+      rowsHtml += `<tr><td colspan="4" style="padding:6px 10px;border:1px solid #d8dde3;${leftBorder}background:${shadeColor('#FCC154', 85)};color:${shadeColor('#FCC154', -55)};font-size:11.5px;text-align:center;font-style:italic;">⏱ ${label}${warning}${arriveDepart}</td></tr>`;
+    }
+    const r = segRowData(seg);
+    rowsHtml += `
+    <tr>
+      <td style="padding:9px 10px;border:1px solid #d8dde3;${leftBorder}${topRule}background:${tint};white-space:nowrap;vertical-align:top;">${escapeHtml(r.date)}</td>
+      <td style="padding:9px 10px;border:1px solid #d8dde3;${topRule}background:${tint};vertical-align:top;">${r.main}</td>
+      <td style="padding:9px 10px;border:1px solid #d8dde3;${topRule}background:${tint};vertical-align:top;white-space:nowrap;">${r.departure}</td>
+      <td style="padding:9px 10px;border:1px solid #d8dde3;${topRule}background:${tint};vertical-align:top;white-space:nowrap;">${r.arrival}</td>
+    </tr>`;
+  });
+  const headHtml = `
+    <tr>
+      <th style="text-align:left;background:#00593F;color:#ffffff;font-size:11.5px;padding:8px 10px;border:1px solid #00593F;">Date</th>
+      <th style="text-align:left;background:#00593F;color:#ffffff;font-size:11.5px;padding:8px 10px;border:1px solid #00593F;">Flight Details</th>
+      <th style="text-align:left;background:#00593F;color:#ffffff;font-size:11.5px;padding:8px 10px;border:1px solid #00593F;">Departure</th>
+      <th style="text-align:left;background:#00593F;color:#ffffff;font-size:11.5px;padding:8px 10px;border:1px solid #00593F;">Arrival</th>
+    </tr>`;
+  const tableHtml = `<table cellspacing="0" cellpadding="0" width="750" style="border-collapse:collapse;width:750px;font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#222;">${headHtml}${rowsHtml}</table>`;
+  return { tableHtml };
+}
+
+function buildPassengerHtml(){
+  return passengers.length
+    ? `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-bottom:10px;"><span style="font-weight:600;">${passengers.length > 1 ? 'Passengers' : 'Passenger'}:</span> ${passengers.map(escapeHtml).join(', ')}</div>`
+    : '';
+}
+
+function buildDisclaimerHtml(){
+  if (!quotingExchange) return '';
+  return `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#3d5a50;font-style:italic;margin-top:16px;">Fares and availability are subject to change, and thus are not guaranteed until ticketing.</div>`;
+}
+
+function buildFullOutputHtml(){
+  // Shared by both the on-page preview and the copy-to-clipboard output, so
+  // they always stay in sync.
+  if (segments.length === 0) return '';
+  const passengerHtml = buildPassengerHtml();
+  const exchangeHtml = buildExchangeInfoHtml();
+  const disclaimerHtml = buildDisclaimerHtml();
+  if (quotingExchange && multipleOptions){
+    // Multiple-options mode: each option already carries its own formatted
+    // table (see buildExchangeOptionBlockHtml), so the full itinerary table
+    // isn't needed here. Disclaimer appears once at the very bottom, not per option.
+    return passengerHtml + exchangeHtml + disclaimerHtml;
+  }
+  const tableHtml = buildEmailTableHtml().tableHtml;
+  return passengerHtml + tableHtml + exchangeHtml + disclaimerHtml;
+}
+
+function formatAmount(val){
+  const trimmed = (val||'').trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('$') ? trimmed : `$${trimmed}`;
+}
+
+function parseAmount(val){
+  if (!val) return 0;
+  const cleaned = val.replace(/[^0-9.\-]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function formatCurrency(num){
+  return Number.isInteger(num) ? `$${num}` : `$${num.toFixed(2)}`;
+}
+
+function buildExchangeOptionBlockHtml(opt, idx){
+  if (!opt.fareDiff && !opt.penalty && !opt.segmentsInput) return '';
+  const indexes = parseSegmentRange(opt.segmentsInput, segments.length);
+  const segList = indexes.map(i => segments[i]).filter(Boolean);
+  const tableHtml = segList.length
+    ? buildEmailTableHtml(segList).tableHtml
+    : `<div style="font-size:12px;color:#88857f;font-style:italic;margin:6px 0;">No matching segments for this range</div>`;
+  const lines = [];
+  if (opt.fareDiff) lines.push(`The additional collection amount per ticket is ${formatAmount(opt.fareDiff)}`);
+  if (opt.penalty) lines.push(`There is a ${formatAmount(opt.penalty)} penalty for exchange per ticket`);
+  const linesHtml = lines.map(l => `<div style="font-weight:600;">${escapeHtml(l)}</div>`).join('');
+  let totalHtml = '';
+  if (opt.fareDiff || opt.penalty){
+    const total = parseAmount(opt.fareDiff) + parseAmount(opt.penalty);
+    totalHtml = `<div style="font-weight:700;font-size:15px;color:#00593F;margin-top:4px;">The total additional amount per ticket is ${formatCurrency(total)}</div>`;
+  }
+  return `
+    <div style="margin-top:18px;padding-top:14px;border-top:2px solid #21456D;">
+      <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-weight:700;font-size:14px;color:#21456D;margin-bottom:6px;">Option ${idx+1}</div>
+      ${tableHtml}
+      <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-top:8px;">${linesHtml}${totalHtml}</div>
+    </div>`;
+}
+
+function buildExchangeInfoHtml(){
+  if (!quotingExchange) return '';
+
+  if (multipleOptions){
+    const blocks = exchangeOptions.map((opt, idx) => buildExchangeOptionBlockHtml(opt, idx)).join('');
+    return blocks;
+  }
+
+  const regularLines = [];
+  if (fareDiffPerPerson) regularLines.push(`The additional collection amount per ticket is ${formatAmount(fareDiffPerPerson)}`);
+  if (penaltyPerPerson) regularLines.push(`There is a ${formatAmount(penaltyPerPerson)} penalty for exchange per ticket`);
+  if (!fareDiffPerPerson && !penaltyPerPerson) return '';
+  const total = parseAmount(fareDiffPerPerson) + parseAmount(penaltyPerPerson);
+  const totalLine = `The total additional amount per ticket is ${formatCurrency(total)}`;
+  const regularHtml = regularLines.map(l => `<div style="font-weight:600;">${escapeHtml(l)}</div>`).join('');
+  const totalHtml = `<div style="font-weight:700;font-size:15px;color:#00593F;margin-top:4px;">${escapeHtml(totalLine)}</div>`;
+  return `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-top:14px;">${regularHtml}${totalHtml}</div>`;
+}
+
+function renderSimpleTable(){
+  if (segments.length === 0){
+    return `<div class="simple-view"><div class="doc-empty" style="padding:40px 10px;"><div class="glyph">✈︎</div><h3>Nothing to show yet</h3><div>Parse a PNR or add a segment on the left to build the table.</div></div></div>`;
+  }
+  const html = buildFullOutputHtml().replace(/<table /g, '<table class="email-table" ');
+  return `<div class="simple-view">${html}</div>`;
+}
+
+function renderDoc(){
+  els.itineraryDoc.innerHTML = renderSimpleTable();
+}
+
+function renderAll(){
+  renderSegEditor();
+  renderDoc();
+}
+
+/* ============================================================
+   FLAP BOARD (signature header animation)
+   ============================================================ */
+function setFlapBoard(str){
+  const chars = str.padEnd(9,' ').slice(0,9).split('');
+  els.flapBoard.innerHTML = '';
+  chars.forEach((c,i)=>{
+    const el = document.createElement('div');
+    el.className = 'flapchar';
+    el.textContent = c;
+    els.flapBoard.appendChild(el);
+    setTimeout(()=>{ el.classList.add('flip'); }, i*40);
+  });
+}
+setFlapBoard('READY');
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+els.parseBtn.addEventListener('click', ()=>{
+  const text = els.pnrInput.value;
+  if (!text.trim()){
+    els.detectHint.textContent = 'Paste a PNR record first.';
+    return;
+  }
+  const src = els.gdsSource.value === 'auto' ? detectSource(text) : els.gdsSource.value;
+  const newSegs = parseRecord(text);
+  const newNames = parsePassengerNames(text);
+  newNames.forEach(n => { if (!passengers.includes(n)) passengers.push(n); });
+  if (passengers.length) els.passengersInput.value = passengers.join(', ');
+  setFlapBoard(newSegs.length ? 'PARSED' : 'NOMATCH');
+  if (newSegs.length === 0){
+    els.detectHint.textContent = `No segments recognized automatically (source guess: ${src}). This happens with less common PNR display formats — add segments manually below and fill in details, or try a different display type (e.g. Sabre *IR, Amadeus RTR).`;
+  } else {
+    els.detectHint.textContent = `Detected ${src === 'sabre' ? 'Sabre' : 'Amadeus'}-style format · found ${newSegs.length} segment${newSegs.length>1?'s':''}. Double-check the fields below — auto-parse is a starting point, not gospel.`;
+    segments = segments.concat(newSegs);
+  }
+  renderAll();
+});
+
+els.passengersInput.addEventListener('input', ()=>{
+  passengers = els.passengersInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+  renderDoc();
+});
+
+els.quotingExchangeCheck.addEventListener('change', ()=>{
+  quotingExchange = els.quotingExchangeCheck.checked;
+  els.exchangeFields.style.display = quotingExchange ? 'block' : 'none';
+  renderDoc();
+});
+
+els.fareDiffInput.addEventListener('input', ()=>{
+  fareDiffPerPerson = els.fareDiffInput.value.trim();
+  renderDoc();
+});
+
+els.penaltyInput.addEventListener('input', ()=>{
+  penaltyPerPerson = els.penaltyInput.value.trim();
+  renderDoc();
+});
+
+els.multipleOptionsCheck.addEventListener('change', ()=>{
+  multipleOptions = els.multipleOptionsCheck.checked;
+  els.singleExchangeFields.style.display = multipleOptions ? 'none' : 'block';
+  els.multiOptionsContainer.style.display = multipleOptions ? 'block' : 'none';
+  if (multipleOptions && exchangeOptions.length === 0){
+    addExchangeOption();
+  }
+  renderDoc();
+});
+
+els.addOptionBtn.addEventListener('click', ()=>{
+  addExchangeOption();
+});
+
+els.clearInputBtn.addEventListener('click', ()=>{
+  els.pnrInput.value = '';
+  els.detectHint.textContent = '';
+  els.passengersInput.value = '';
+  els.quotingExchangeCheck.checked = false;
+  els.exchangeFields.style.display = 'none';
+  els.fareDiffInput.value = '';
+  els.penaltyInput.value = '';
+  els.multipleOptionsCheck.checked = false;
+  els.singleExchangeFields.style.display = 'block';
+  els.multiOptionsContainer.style.display = 'none';
+  els.optionsList.innerHTML = '';
+  segments = [];
+  passengers = [];
+  quotingExchange = false;
+  fareDiffPerPerson = '';
+  penaltyPerPerson = '';
+  multipleOptions = false;
+  exchangeOptions = [];
+  setFlapBoard('READY');
+  renderAll();
+});
+
+async function copyHtmlRobust(html){
+  // Tier 1: modern async Clipboard API (best result, needs permission the
+  // hosting page may not grant to a sandboxed preview iframe).
+  try{
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], {type:'text/html'}),
+        'text/plain': new Blob([html], {type:'text/plain'})
+      });
+      await navigator.clipboard.write([item]);
+      return 'clipboard-api';
+    }
+  }catch(e){ /* fall through */ }
+
+  // Tier 2: legacy execCommand('copy') via a hidden contenteditable element.
+  // This works in more restricted/embedded contexts than the async Clipboard API.
+  try{
+    const container = document.createElement('div');
+    container.contentEditable = 'true';
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    const range = document.createRange();
+    range.selectNodeContents(container);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const ok = document.execCommand('copy');
+    selection.removeAllRanges();
+    document.body.removeChild(container);
+    if (ok) return 'exec-command';
+  }catch(e2){ /* fall through */ }
+
+  // Tier 3: plain writeText of the raw source (still useful, just not "rich").
+  try{
+    await navigator.clipboard.writeText(html);
+    return 'clipboard-text';
+  }catch(e3){ /* fall through */ }
+
+  return null; // caller shows the manual copy box
+}
+
+els.copyBtn.addEventListener('click', async ()=>{
+  if (segments.length === 0){
+    els.copyBtn.textContent = 'Nothing to copy yet';
+    setTimeout(()=>{ els.copyBtn.textContent = '⧉ Copy table HTML'; }, 1600);
+    return;
+  }
+  const html = buildFullOutputHtml();
+  const result = await copyHtmlRobust(html);
+
+  if (result){
+    els.manualCopyBox.style.display = 'none';
+    els.copyBtn.textContent = '✓ Copied — paste into your email';
+    setTimeout(()=>{ els.copyBtn.textContent = '⧉ Copy table HTML'; }, 2000);
+  } else {
+    // Guaranteed fallback: show the HTML in a selected, ready-to-copy textarea.
+    // No alert() here — sandboxed preview iframes can silently block window.alert().
+    els.manualCopyArea.value = html;
+    els.manualCopyBox.style.display = 'block';
+    els.manualCopyArea.focus();
+    els.manualCopyArea.select();
+    els.copyBtn.textContent = 'Select the box below ↓';
+    setTimeout(()=>{ els.copyBtn.textContent = '⧉ Copy table HTML'; }, 2500);
+  }
+});
+
+/* ============================================================
+   SEED EXAMPLE (so first-time users see the shape of the output)
+   ============================================================ */
+(function seedExample(){
+  renderAll();
+})();
+</script>
+</body>
+</html>
