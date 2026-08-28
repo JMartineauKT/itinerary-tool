@@ -1445,15 +1445,27 @@ function buildEmailTableHtml(segList){
   return { tableHtml };
 }
 
+function emailBlock(innerHtml, opts){
+  // Email clients (Outlook especially) don't reliably respect width/margin on
+  // <div> — wrap fixed-width content blocks in a single-cell table instead,
+  // matching the same fixed-width approach used for the itinerary tables.
+  opts = opts || {};
+  const border = opts.borderTop ? `border-top:${opts.borderTop};border-right:none;border-bottom:none;border-left:none;` : 'border:none;';
+  const margin = (opts.marginTop ? `margin-top:${opts.marginTop};` : '') + (opts.marginBottom ? `margin-bottom:${opts.marginBottom};` : '');
+  const padding = opts.borderTop ? '14px 0 0' : '0';
+  return `<table cellspacing="0" cellpadding="0" width="750" style="width:750px;border-collapse:collapse;${margin}"><tr><td style="padding:${padding};${border}">${innerHtml}</td></tr></table>`;
+}
+
 function buildPassengerHtml(){
-  return passengers.length
-    ? `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-bottom:10px;"><span style="font-weight:600;">${passengers.length > 1 ? 'Passengers' : 'Passenger'}:</span> ${passengers.map(escapeHtml).join(', ')}</div>`
-    : '';
+  if (!passengers.length) return '';
+  const inner = `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;"><span style="font-weight:600;">${passengers.length > 1 ? 'Passengers' : 'Passenger'}:</span> ${passengers.map(escapeHtml).join(', ')}</div>`;
+  return emailBlock(inner, { marginBottom: '10px' });
 }
 
 function buildDisclaimerHtml(){
   if (!quotingExchange) return '';
-  return `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#3d5a50;font-style:italic;margin-top:16px;">Fares and availability are subject to change, and thus are not guaranteed until ticketing.</div>`;
+  const inner = `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#3d5a50;font-style:italic;">Fares and availability are subject to change, and thus are not guaranteed until ticketing.</div>`;
+  return emailBlock(inner, { marginTop: '16px' });
 }
 
 function buildFullOutputHtml(){
@@ -1506,12 +1518,11 @@ function buildExchangeOptionBlockHtml(opt, idx){
     const total = parseAmount(opt.fareDiff) + parseAmount(opt.penalty);
     totalHtml = `<div style="font-weight:700;font-size:15px;color:#00593F;margin-top:4px;">The total additional amount per ticket is ${formatCurrency(total)}</div>`;
   }
-  return `
-    <div style="margin-top:18px;padding-top:14px;border-top:2px solid #21456D;">
-      <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-weight:700;font-size:14px;color:#21456D;margin-bottom:6px;">Option ${idx+1}</div>
-      ${tableHtml}
-      <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-top:8px;">${linesHtml}${totalHtml}</div>
-    </div>`;
+  const inner = `
+    <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-weight:700;font-size:14px;color:#21456D;margin-bottom:6px;">Option ${idx+1}</div>
+    ${tableHtml}
+    <div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-top:8px;">${linesHtml}${totalHtml}</div>`;
+  return emailBlock(inner, { marginTop: '18px', borderTop: '2px solid #21456D' });
 }
 
 function buildExchangeInfoHtml(){
@@ -1530,7 +1541,8 @@ function buildExchangeInfoHtml(){
   const totalLine = `The total additional amount per ticket is ${formatCurrency(total)}`;
   const regularHtml = regularLines.map(l => `<div style="font-weight:600;">${escapeHtml(l)}</div>`).join('');
   const totalHtml = `<div style="font-weight:700;font-size:15px;color:#00593F;margin-top:4px;">${escapeHtml(totalLine)}</div>`;
-  return `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;margin-top:14px;">${regularHtml}${totalHtml}</div>`;
+  const inner = `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;">${regularHtml}${totalHtml}</div>`;
+  return emailBlock(inner, { marginTop: '14px' });
 }
 
 function renderSimpleTable(){
