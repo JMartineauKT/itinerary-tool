@@ -647,7 +647,7 @@ const AIRPORTS = {
   EZE:'Buenos Aires', AEP:'Buenos Aires', SCL:'Santiago', LIM:'Lima', BOG:'Bogotá',
   UIO:'Quito', CTG:'Cartagena', MDE:'Medellín', PTY:'Panama City',
   MEX:'Mexico City', CUN:'Cancún', SJD:'Los Cabos', PVR:'Puerto Vallarta',
-  GDL:'Guadalajara', OAX:'Oaxaca', MID:'Mérida', NAS:'Nassau', PUJ:'Punta Cana',
+  GDL:'Guadalajara', OAX:'Oaxaca', MID:'Mérida', NAS:'Nassau', PUJ:'Punta Cana', BDA:'Bermuda',
   SJU:'San Juan', AUA:'Aruba', CUR:'Curaçao', MBJ:'Montego Bay', GCM:'Grand Cayman',
   BGI:'Bridgetown (Barbados)', SXM:'Sint Maarten', ANU:'Antigua'
 };
@@ -705,7 +705,7 @@ const AIRPORT_TZ = {
   EZE:'America/Argentina/Buenos_Aires', AEP:'America/Argentina/Buenos_Aires', SCL:'America/Santiago', LIM:'America/Lima',
   BOG:'America/Bogota', UIO:'America/Guayaquil', CTG:'America/Bogota', MDE:'America/Bogota', PTY:'America/Panama',
   MEX:'America/Mexico_City', CUN:'America/Cancun', SJD:'America/Mazatlan', PVR:'America/Mexico_City',
-  GDL:'America/Mexico_City', OAX:'America/Mexico_City', MID:'America/Merida', NAS:'America/Nassau',
+  GDL:'America/Mexico_City', OAX:'America/Mexico_City', MID:'America/Merida', NAS:'America/Nassau', BDA:'Atlantic/Bermuda',
   PUJ:'America/Santo_Domingo', SJU:'America/Puerto_Rico', AUA:'America/Aruba', CUR:'America/Curacao',
   MBJ:'America/Jamaica', GCM:'America/Cayman', BGI:'America/Barbados', SXM:'America/Lower_Princes', ANU:'America/Antigua'
 };
@@ -740,7 +740,7 @@ const AIRPORT_COUNTRY = {
   GRU:'BR', GIG:'BR', SDU:'BR', BSB:'BR', EZE:'AR', AEP:'AR', SCL:'CL', LIM:'PE',
   BOG:'CO', UIO:'EC', CTG:'CO', MDE:'CO', PTY:'PA',
   MEX:'MX', CUN:'MX', SJD:'MX', PVR:'MX', GDL:'MX', OAX:'MX', MID:'MX',
-  NAS:'BS', PUJ:'DO', AUA:'AW', CUR:'CW', MBJ:'JM', GCM:'KY', BGI:'BB', SXM:'SX', ANU:'AG'
+  NAS:'BS', PUJ:'DO', AUA:'AW', CUR:'CW', MBJ:'JM', GCM:'KY', BGI:'BB', SXM:'SX', ANU:'AG', BDA:'BM'
 };
 
 // General industry convention for booking-class letter -> cabin. Individual airlines
@@ -910,7 +910,11 @@ function parseRecord(text){
     if (/^\d+\.(?:I\/)?\d*[A-Z]+\//.test(line)) return;
     if (!/^\d+\.?\s/.test(line) && !/[A-Z]{3}[A-Z]{3}/.test(line) && !/HTL|HOTEL|CAR\b|RAIL|TRAIN/i.test(line)) return;
     let seg = parseAirLine(line) || parseHotelLine(line) || parseCarLine(line) || parseRailLine(line);
-    if (seg) found.push(seg);
+    if (seg){
+      const numM = line.match(/^(\d+)\b/);
+      if (numM) seg.gdsNumber = parseInt(numM[1], 10);
+      found.push(seg);
+    }
   });
   return found;
 }
@@ -980,12 +984,12 @@ function renderSegEditor(){
   els.segEmpty.style.display = segments.length ? 'none' : 'block';
   els.segCount.textContent = segments.length ? `(${segments.length})` : '';
 
-  segments.forEach(seg=>{
+  segments.forEach((seg, idx)=>{
     const card = document.createElement('div');
     card.className = `seg-card ${seg.type}`;
     const head = document.createElement('div');
     head.className = 'seg-head';
-    head.innerHTML = `<span class="seg-type-tag">${TYPE_LABEL[seg.type]}</span>`;
+    head.innerHTML = `<span class="seg-type-tag">#${segmentDisplayNumber(seg, idx)} · ${TYPE_LABEL[seg.type]}</span>`;
     const rm = document.createElement('button');
     rm.className = 'seg-remove';
     rm.textContent = '✕';
@@ -1019,10 +1023,10 @@ document.querySelectorAll('[data-add]').forEach(btn=>{
   });
 });
 
-function parseSegmentRange(str, maxLen){
-  // "1-3,5" -> [0,1,2,4] (0-based, deduped, sorted, clamped to valid range)
+function parseSegmentRange(str){
+  // "4-5,7" -> [4,5,7] (raw requested numbers, deduped, sorted)
   if (!str) return [];
-  const indexes = new Set();
+  const nums = new Set();
   str.split(',').forEach(part=>{
     part = part.trim();
     if (!part) return;
@@ -1030,13 +1034,25 @@ function parseSegmentRange(str, maxLen){
     if (rangeM){
       let a = parseInt(rangeM[1],10), b = parseInt(rangeM[2],10);
       if (a > b) [a,b] = [b,a];
-      for (let i=a; i<=b; i++) indexes.add(i-1);
+      for (let i=a; i<=b; i++) nums.add(i);
     } else {
       const n = parseInt(part,10);
-      if (!isNaN(n)) indexes.add(n-1);
+      if (!isNaN(n)) nums.add(n);
     }
   });
-  return [...indexes].filter(i => i>=0 && i<maxLen).sort((a,b)=>a-b);
+  return [...nums].sort((a,b)=>a-b);
+}
+
+function segmentDisplayNumber(seg, index){
+  // Segments parsed from a GDS record carry their real segment number; manually
+  // added segments (no GDS number) fall back to their position in the list.
+  return seg.gdsNumber != null ? seg.gdsNumber : (index + 1);
+}
+
+function resolveSegmentsByNumber(str){
+  const map = {};
+  segments.forEach((seg, i) => { map[segmentDisplayNumber(seg, i)] = seg; });
+  return parseSegmentRange(str).map(n => map[n]).filter(Boolean);
 }
 
 function addExchangeOption(){
@@ -1065,7 +1081,7 @@ function renderExchangeOptionsEditor(){
     fieldsWrap.className = 'seg-fields';
 
     const fieldDefs = [
-      ['segmentsInput', 'Segments (e.g. 1-3 or 1,3)', 'e.g. 1-3', true],
+      ['segmentsInput', 'GDS segment #s (e.g. 4-5 or 4,5)', 'e.g. 4-5', true],
       ['fareDiff', 'Fare diff per person', 'e.g. 150', false],
       ['penalty', 'Penalty per person', 'e.g. 200', false]
     ];
@@ -1504,15 +1520,14 @@ function formatCurrency(num){
 
 function buildExchangeOptionBlockHtml(opt, idx){
   if (!opt.fareDiff && !opt.penalty && !opt.segmentsInput) return '';
-  const indexes = parseSegmentRange(opt.segmentsInput, segments.length);
-  const segList = indexes.map(i => segments[i]).filter(Boolean);
+  const segList = resolveSegmentsByNumber(opt.segmentsInput);
   const tableHtml = segList.length
     ? buildEmailTableHtml(segList).tableHtml
     : `<div style="font-size:12px;color:#88857f;font-style:italic;margin:6px 0;">No matching segments for this range</div>`;
   const lines = [];
-  if (opt.fareDiff) lines.push(`The additional collection amount per ticket is ${formatAmount(opt.fareDiff)}`);
-  if (opt.penalty) lines.push(`There is a ${formatAmount(opt.penalty)} penalty for exchange per ticket`);
-  const linesHtml = lines.map(l => `<div style="font-weight:600;">${escapeHtml(l)}</div>`).join('');
+  if (opt.fareDiff) lines.push(`The additional collection amount per ticket is <strong style="font-weight:600;">${escapeHtml(formatAmount(opt.fareDiff))}</strong>`);
+  if (opt.penalty) lines.push(`There is a <strong style="font-weight:600;">${escapeHtml(formatAmount(opt.penalty))}</strong> penalty for exchange per ticket`);
+  const linesHtml = lines.map(l => `<div style="font-weight:400;">${l}</div>`).join('');
   let totalHtml = '';
   if (opt.fareDiff || opt.penalty){
     const total = parseAmount(opt.fareDiff) + parseAmount(opt.penalty);
@@ -1534,12 +1549,12 @@ function buildExchangeInfoHtml(){
   }
 
   const regularLines = [];
-  if (fareDiffPerPerson) regularLines.push(`The additional collection amount per ticket is ${formatAmount(fareDiffPerPerson)}`);
-  if (penaltyPerPerson) regularLines.push(`There is a ${formatAmount(penaltyPerPerson)} penalty for exchange per ticket`);
+  if (fareDiffPerPerson) regularLines.push(`The additional collection amount per ticket is <strong style="font-weight:600;">${escapeHtml(formatAmount(fareDiffPerPerson))}</strong>`);
+  if (penaltyPerPerson) regularLines.push(`There is a <strong style="font-weight:600;">${escapeHtml(formatAmount(penaltyPerPerson))}</strong> penalty for exchange per ticket`);
   if (!fareDiffPerPerson && !penaltyPerPerson) return '';
   const total = parseAmount(fareDiffPerPerson) + parseAmount(penaltyPerPerson);
   const totalLine = `The total additional amount per ticket is ${formatCurrency(total)}`;
-  const regularHtml = regularLines.map(l => `<div style="font-weight:600;">${escapeHtml(l)}</div>`).join('');
+  const regularHtml = regularLines.map(l => `<div style="font-weight:400;">${l}</div>`).join('');
   const totalHtml = `<div style="font-weight:700;font-size:15px;color:#00593F;margin-top:4px;">${escapeHtml(totalLine)}</div>`;
   const inner = `<div style="font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;font-size:13px;color:#00241A;">${regularHtml}${totalHtml}</div>`;
   return emailBlock(inner, { marginTop: '14px' });
