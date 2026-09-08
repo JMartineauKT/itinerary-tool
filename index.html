@@ -74,15 +74,6 @@
     align-items:baseline;
     gap:10px;
   }
-  .brandmark .flap{
-    font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
-    font-weight:600;
-    font-size:13px;
-    color:var(--ink);
-    background:var(--amber);
-    padding:3px 7px;
-    border-radius:3px;
-  }
   .brandmark h1{
     font-family:'Adelle Sans', 'Open Sans', Arial, Helvetica, sans-serif;
     font-weight:600;
@@ -402,10 +393,9 @@
 <div class="app">
   <div class="topbar">
     <div class="brandmark">
-      <span class="flap">GDS→</span>
       <div>
         <h1>Itinerary Studio</h1>
-        <span class="sub">Sabre &amp; Amadeus PNR → client-ready itinerary</span>
+        <span class="sub">Convert Sabre &amp; Amadeus PNRs to client-ready itinerary</span>
       </div>
     </div>
     <div class="board" id="flapBoard"></div>
@@ -417,12 +407,7 @@
 
       <div class="terminal-section">
         <span class="label">01 · Paste GDS Record</span>
-        <textarea id="pnrInput" placeholder="Paste the raw PNR itinerary text from Sabre (*IR / *IA) or Amadeus (RTR) here...
-
-e.g.
-1 UA 456 Y 12AUG 3 ORDLAX HK1  815A 1042A
-2 HH HOTEL LOS ANGELES CA HK1 12AUG-15AUG /CONF-98213
-3 AVIS CAR LAX HK1 12AUG-15AUG"></textarea>
+        <textarea id="pnrInput" placeholder="Paste the itinerary from Sabre (*A) or Amadeus (RT) here..."></textarea>
         <div class="row" style="margin-top:10px;">
           <div>
             <label class="label" style="margin-bottom:4px;">Source</label>
@@ -462,10 +447,11 @@ e.g.
           </div>
         </div>
         <div class="parse-actions">
-          <button class="btn btn-primary" id="parseBtn">⌁ Parse record</button>
+          <button class="btn btn-primary" id="parseBtn">⌁ Convert</button>
           <button class="btn btn-ghost btn-sm" id="clearInputBtn">Clear</button>
         </div>
         <div class="hint" id="detectHint"></div>
+        <div id="duplicateWarning" style="display:none; margin-top:10px; padding:10px 12px; border-radius:6px; background:rgba(244,102,59,.12); border:1px solid #F4663B; color:#F4663B; font-size:12.5px; line-height:1.5;"></div>
       </div>
 
       <details class="manual-input">
@@ -532,6 +518,7 @@ const els = {
   parseBtn: document.getElementById('parseBtn'),
   clearInputBtn: document.getElementById('clearInputBtn'),
   detectHint: document.getElementById('detectHint'),
+  duplicateWarning: document.getElementById('duplicateWarning'),
   passengersInput: document.getElementById('passengersInput'),
   quotingExchangeCheck: document.getElementById('quotingExchangeCheck'),
   exchangeFields: document.getElementById('exchangeFields'),
@@ -612,7 +599,7 @@ const AIRPORTS = {
   JFK:'New York', EWR:'New York', LGA:'New York', ORD:'Chicago', LAX:'Los Angeles',
   SFO:'San Francisco', SEA:'Seattle', DEN:'Denver', ATL:'Atlanta', MIA:'Miami',
   DFW:'Dallas', IAH:'Houston', BOS:'Boston', PHL:'Philadelphia', IAD:'Washington D.C.',
-  DCA:'Washington D.C.', LAS:'Las Vegas', PHX:'Phoenix', MCO:'Orlando', CLT:'Charlotte',
+  DCA:'Washington D.C.', LAS:'Las Vegas', PHX:'Phoenix', MCO:'Orlando', CLT:'Charlotte', FLO:'Florence', LFT:'Lafayette',
   LHR:'London', LGW:'London', LCY:'London', STN:'London', CDG:'Paris', ORY:'Paris',
   FCO:'Rome', CIA:'Rome', MXP:'Milan', LIN:'Milan', VCE:'Venice', NAP:'Naples',
   CTA:'Catania', PSA:'Pisa', FLR:'Florence', BLQ:'Bologna', TRN:'Turin', PMO:'Palermo',
@@ -670,7 +657,7 @@ const AIRPORT_TZ = {
   JFK:'America/New_York', EWR:'America/New_York', LGA:'America/New_York', ORD:'America/Chicago', LAX:'America/Los_Angeles',
   SFO:'America/Los_Angeles', SEA:'America/Los_Angeles', DEN:'America/Denver', ATL:'America/New_York', MIA:'America/New_York',
   DFW:'America/Chicago', IAH:'America/Chicago', BOS:'America/New_York', PHL:'America/New_York', IAD:'America/New_York',
-  DCA:'America/New_York', LAS:'America/Los_Angeles', PHX:'America/Phoenix', MCO:'America/New_York', CLT:'America/New_York',
+  DCA:'America/New_York', LAS:'America/Los_Angeles', PHX:'America/Phoenix', MCO:'America/New_York', CLT:'America/New_York', FLO:'America/New_York', LFT:'America/Chicago',
   LHR:'Europe/London', LGW:'Europe/London', LCY:'Europe/London', STN:'Europe/London', CDG:'Europe/Paris', ORY:'Europe/Paris',
   FCO:'Europe/Rome', CIA:'Europe/Rome', MXP:'Europe/Rome', LIN:'Europe/Rome', VCE:'Europe/Rome', NAP:'Europe/Rome',
   CTA:'Europe/Rome', PSA:'Europe/Rome', FLR:'Europe/Rome', BLQ:'Europe/Rome', TRN:'Europe/Rome', PMO:'Europe/Rome',
@@ -716,7 +703,7 @@ const AIRPORT_TZ = {
 const AIRPORT_COUNTRY = {
   YYZ:'CA', YVR:'CA', YUL:'CA', YYC:'CA', YOW:'CA',
   JFK:'US', EWR:'US', LGA:'US', ORD:'US', LAX:'US', SFO:'US', SEA:'US', DEN:'US', ATL:'US', MIA:'US',
-  DFW:'US', IAH:'US', BOS:'US', PHL:'US', IAD:'US', DCA:'US', LAS:'US', PHX:'US', MCO:'US', CLT:'US', SJU:'US',
+  DFW:'US', IAH:'US', BOS:'US', PHL:'US', IAD:'US', DCA:'US', LAS:'US', PHX:'US', MCO:'US', CLT:'US', SJU:'US', FLO:'US', LFT:'US',
   LHR:'GB', LGW:'GB', LCY:'GB', STN:'GB', DUB:'IE', SNN:'IE',
   CDG:'FR', ORY:'FR', LYS:'FR', NCE:'FR', MRS:'FR', TLS:'FR', BOD:'FR', NTE:'FR',
   FCO:'IT', CIA:'IT', MXP:'IT', LIN:'IT', VCE:'IT', NAP:'IT', CTA:'IT', PSA:'IT', FLR:'IT', BLQ:'IT', TRN:'IT', PMO:'IT',
@@ -756,6 +743,174 @@ const CABIN_MAP = {
 function cabinFromClass(code){
   if (!code) return '';
   return CABIN_MAP[code.trim().toUpperCase()] || '';
+}
+
+// ACRISS/SIPP car classification codes — a published international standard
+// (unlike hotel property IDs, this is public, well-defined reference data).
+const ACRISS_CATEGORY = {
+  M:'Mini', N:'Mini Elite', E:'Economy', H:'Economy Elite', C:'Compact', D:'Compact Elite',
+  I:'Intermediate', J:'Intermediate Elite', S:'Standard', R:'Standard Elite', F:'Fullsize', G:'Fullsize Elite',
+  P:'Premium', U:'Premium Elite', L:'Luxury', W:'Luxury Elite', O:'Oversize', X:'Special'
+};
+const ACRISS_TYPE = {
+  B:'2-3 Door', C:'2/4 Door', D:'4-5 Door', W:'Wagon/Estate', V:'Passenger Van', L:'Limousine/Sedan',
+  S:'Sport', T:'Convertible', F:'SUV', J:'Open Air All Terrain', X:'Special',
+  P:'Pickup (Single/Extended Cab)', Q:'Pickup (Double Cab)', Z:'Special Offer Car',
+  E:'Coupe', M:'Monospace', R:'Recreational Vehicle', H:'Motor Home', G:'Crossover'
+};
+const ACRISS_TRANSMISSION = {
+  M:'Manual', N:'Manual 4WD', C:'Manual AWD', A:'Automatic', B:'Automatic 4WD', D:'Automatic AWD'
+};
+const ACRISS_FUEL = {
+  R:{fuel:'', ac:true}, N:{fuel:'', ac:false},
+  D:{fuel:'Diesel', ac:true}, Q:{fuel:'Diesel', ac:false},
+  H:{fuel:'Hybrid', ac:true}, I:{fuel:'Hybrid Plug-in', ac:true},
+  E:{fuel:'Electric', ac:true},
+  L:{fuel:'LPG/CNG', ac:true}, S:{fuel:'LPG/CNG', ac:false},
+  V:{fuel:'Petrol', ac:true}, Z:{fuel:'Petrol', ac:false},
+  U:{fuel:'Ethanol', ac:true}, X:{fuel:'Ethanol', ac:false}
+};
+function decodeAcrissCode(code){
+  if (!code || code.length !== 4) return null;
+  const [c1,c2,c3,c4] = code.trim().toUpperCase().split('');
+  const category = ACRISS_CATEGORY[c1], type = ACRISS_TYPE[c2], transmission = ACRISS_TRANSMISSION[c3], fuelInfo = ACRISS_FUEL[c4];
+  if (!category || !type || !transmission || !fuelInfo) return null; // unrecognized letter — don't guess
+  const fuelBits = [];
+  if (fuelInfo.fuel) fuelBits.push(fuelInfo.fuel);
+  fuelBits.push(fuelInfo.ac ? 'A/C' : 'No A/C');
+  return `${category} ${type} · ${transmission} · ${fuelBits.join(', ')}`;
+}
+
+// GDS car rental vendor codes (2-letter, standardized across major GDSs).
+const CAR_VENDOR_CODES = {
+  ZE:'Hertz', ZI:'Avis', ZD:'Budget', ZT:'Thrifty', ZR:'Dollar',
+  AL:'Alamo', ET:'Enterprise', ZL:'National', SX:'Sixt'
+};
+function carVendorName(code){
+  if (!code) return '';
+  return CAR_VENDOR_CODES[code.trim().toUpperCase()] || '';
+}
+
+// GDS hotel chain/brand codes (2-letter). Deliberately small — unlike airline
+// or car vendor codes, these are numerous and not all independently verifiable
+// from public sources, so this only includes confirmed mappings. Add more here
+// as they're confirmed.
+// GDS hotel chain/brand codes (2-letter), sourced directly from each hotel
+// company's own official travel-agent GDS reference page. Marriott and Hilton
+// are complete per their published lists; IHG is a partial official set.
+const HOTEL_BRAND_CODES = {
+  // Marriott International (travelagents.marriott.com) — cross-checked against
+  // Amadeus's own production hotel-chains list; kept Marriott's own naming
+  // where the two differed only in wording.
+  AR:'AC Hotels by Marriott', IM:'All-Inclusive by Marriott', AL:'Aloft by Marriott',
+  BA:'Apartments by Marriott Bonvoy', AK:'Autograph Collection', BG:'Bvlgari Hotels and Resorts',
+  CU:'citizenM', XE:'City Express by Marriott', CY:'Courtyard by Marriott', DE:'Delta Hotels by Marriott',
+  DP:'Design Hotels', EB:'EDITION', EL:'Element by Marriott', FN:'Fairfield by Marriott',
+  FP:'Four Points by Sheraton', GE:'Gaylord Hotels', MC:'Marriott Hotels', MD:'Le Meridien',
+  LC:'The Luxury Collection', ET:'Marriott Conference Centers', VC:'Marriott Vacation Club',
+  OX:'Moxy Hotels', UO:'Outdoor Collection by Marriott', PR:'Protea Hotels by Marriott',
+  BR:'Renaissance Hotels', RC:'Residence Inn by Marriott', RZ:'The Ritz-Carlton',
+  MF:'Series by Marriott', SI:'Sheraton', XV:'Springhill Suites by Marriott', XR:'St. Regis',
+  RS:'StudioRes by Marriott', TO:'TownePlace Suites by Marriott', TX:'Tribute Portfolio',
+  WH:'W Hotels', WI:'Westin',
+  // Hilton (hilton.com) — kept Hilton's own naming/codes for newer brands
+  // (Spark, LivSmart) that Amadeus's reference hadn't caught up on yet.
+  WA:'Waldorf Astoria Hotels & Resorts', CN:'Conrad Hotels & Resorts', OL:'LXR Hotels & Resorts',
+  ND:'NoMad', SA:'Signia Hilton', PY:'Canopy by Hilton', HH:'Hilton Hotels & Resorts',
+  HL:'Hilton Hotels & Resorts', QQ:'Curio Collection by Hilton', GU:'Graduate by Hilton',
+  DT:'DoubleTree by Hilton', UP:'Tapestry Collection by Hilton',
+  ES:'Embassy Suites by Hilton', PO:'Tempo by Hilton', ID:'Outset Collection by Hilton',
+  UA:'Motto by Hilton', GI:'Hilton Garden Inn', HX:'Hampton by Hilton', RU:'Tru by Hilton',
+  PE:'Spark by Hilton', HG:'Homewood Suites by Hilton', HT:'Home2 Suites by Hilton',
+  EY:'LivSmart Studios by Hilton',
+  // IHG (ihg.com official list, cross-checked against Amadeus)
+  '6C':'IHG', CP:'Crowne Plaza Hotels & Resorts', IC:'InterContinental Hotels & Resorts',
+  HI:'Holiday Inn', HS:'Holiday Inn Express', WE:'Atwell Suites', VA:'avid hotels', YO:'Candlewood Suites',
+  VN:'EVEN Hotels', UL:'HUALUXE', VX:'voco', KC:'Kimpton Hotels', RE:'Regent Hotels',
+  // Hyatt / Accor master codes
+  HY:'Hyatt', RT:'Accor Hotels',
+  // Everything below: Amadeus for Developers production hotel-chains reference
+  // (github.com/amadeus4dev/data-collection), the same list used across GDSs.
+  FA:'Fairmont Hotels', FC:'Rocco Forte Hotels', FG:'D-EDGE', FH:'Fiesta Americana',
+  FS:'Four Seasons Hotels', FX:'First Hotels', IA:'Corinthia Hotels', IN:'Hotel Indigo',
+  IR:'Iberostar Hotels & Resorts', JT:'Jumeirah', JV:'Joie de Vivre', MH:'Marco Polo Hotels',
+  MK:'Mövenpick Hotels & Resorts', MM:'Maritim Hotels', MN:'Montage Hotels & Resorts',
+  MO:'Mandarin Oriental Hotel Group', MP:'Mantra Group', MR:'Morgans Hotel Group',
+  MV:'MGM Resorts International', MX:'Motel 6', MZ:'MainStay Suites',
+  NC:'Noble House Hotels & Resorts', NK:'Nikko Hotels', NN:'Louvre Hotels',
+  NZ:'Ascend Hotel Collection', SB:'Sofitel', SG:'Shangri-La Hotels', SH:'Scandic Hotels',
+  SL:'Swissôtel', SM:'Meliá Hotels International', SN:'Sonesta Collection', SY:'Starhotels',
+  SZ:'Sleep Inn', TF:'Thon Hotels', TG:'Travelodge UK', TH:'Trident Hotels', TJ:'Taj Hotels',
+  TL:'Travelodge Hotels', TW:'Trump Hotel Collection', VI:'Vienna House', VY:'Maybourne Hotel Group',
+  CQ:'Club Quarters Hotels', CV:'COMO Hotels & Resorts', CX:'Country Inn & Suites',
+  CZ:'Comfort Suites', DC:'Dorchester Collection', DH:'Dot Hotels', DN:'Destination Hotels',
+  DO:'Dorint Hotels & Resorts', DR:'Drury Inn', DS:'Design Hotels', DV:'Village Hotels',
+  DW:'Dusit Hotels & Resorts', DX:'Dolce Hotels & Resorts', EA:'Extended Stay America',
+  EO:'EconoLodge', ER:'Eden Hotels', EU:'Chateaux & Hotels Collection', EZ:'Cambria Suites',
+  KI:'Kempinski Hotels', LB:'Lebua Hotels & Resorts', LD:'Leonardo Hotels',
+  LG:'Lindner Hotels & Resorts', LO:'Langham Hotels International', LQ:'La Quinta by Wyndham',
+  LR:'Leela Palace Hotels', LZ:'Loews Hotels', OA:'Archer Hotel', OB:'Oberoi Hotels',
+  OC:'Okura Hotels', OE:'Belmond', OM:'Omni Hotels', OO:'One&Only Hotels',
+  OR:'Outrigger Hotels & Resorts', OZ:'Super 8 by Wyndham', PD:'Park Inn',
+  PF:'Pan Pacific Hotels', PN:'The Peninsula Hotels', PS:'Sandman Hotels',
+  UB:'Suburban Extended Stay', WB:'Relais & Châteaux', WG:'Wingate by Wyndham',
+  WK:'Warwick Hotels', WT:'TRYP by Wyndham', WW:'WorldHotels', WX:'Coast Hotels & Resorts',
+  WY:'Wyndham Hotels', XW:'WorldHotel Collection', AZ:'Ascott Limited', BE:'Benchmark Hotels',
+  BH:'Hawthorn Suites', BN:'Barceló Hotel Group', BU:'Baymont by Wyndham', BW:'Best Western',
+  BY:'Banyan Tree', CC:'Clarion Hotels', CI:'Comfort Inn', CK:'Arlo Hotels', CM:'Camino Real',
+  GB:'Macdonald Hotels & Resorts', GH:'Grand Heritage', GT:'Golden Tulip', HJ:'Howard Johnson',
+  HM:'Hoteles Mision', LW:'The Leading Hotels of the World', LX:'Small Luxury Hotels',
+  PH:'Preferred Hotels', PI:'Premier Inn', PK:'Park Plaza', PL:'Parkroyal Hotels',
+  PU:'Pullman', QI:'Quality Inn', RA:'Ramada by Wyndham', RD:'Radisson Hotels',
+  RO:'Rotana Hotels & Resorts', YR:'Raffles Hotels', YZ:'Staybridge Suites',
+  AH:'Aston Hotels', AI:'Armani Hotels', AM:'Aman', AN:'ANA Hotels', AT:'The Address',
+  AW:'AmericInn by Wyndham', HR:"Harrah's Hotels", NW:'New World Hotels', TD:'TFE Hotels',
+  HB:'HotelBeds', PG:'Park Hotel Group', PT:'Pentahotels', TM:'Thompson Hotels',
+  OH:'Minor Hotels', VL:'Virgin Hotels', DZ:'Dream Hotels', OT:'Oetker Collection',
+  PA:'The Principal Hotel Company', YL:'YOTEL', VG:'Viceroy Hotel Group', NB:'Nobu Hotels',
+  UR:'SureStay by Best Western', LF:'Alila Hotels & Resorts', BD:'B&B Hotels',
+  TQ:'Trademark by Wyndham', HP:'hub by Premier Inn', NH:'NH Hotel Group', KB:'Krystal Hotels',
+  RK:'Hard Rock Hotels', WS:'WoodSpring Suites', DA:'Dalata Hotel Group',
+  LL:'Lotte Hotels & Resorts', RQ:'Regal Hotels', OY:'OYO Hotels and Homes',
+  AS:'Agoda', BK:'Booking.com', XD:'Expedia',
+  // Master chain codes — the umbrella company code, distinct from (not in
+  // conflict with) the specific sub-brand codes above (e.g. EH is Hilton's
+  // master code; GI/HH/HL are individual Hilton-family brand codes).
+  EM:'Marriott International', EH:'Hilton Hotel Brands', WR:'Wyndham Hotel Group',
+  EC:'Choice Hotels', GL:'Global Hotel Alliance',
+  // Remaining entries from the Amadeus reference list
+  IQ:'myfidelio.net', IS:'Ian Schrager', IW:'Hotels & Preference', JB:'B Hotels and Resorts',
+  JD:'The Doyle Collection', JI:"Jury's Inns", JJ:'Jin Jiang Hotels', NU:'Northwood Hospitality',
+  NY:'Denihan Hospitality', SC:'Sceptre Hospitality', SE:'Sercotel Hoteles', SO:'Sokos Hotels',
+  SP:'Special Prop IC Grp', SR:'Deutsche Hospitality', SU:'Tsogo Sun Hotels', SV:'Sarova Hotels',
+  SX:'Supranational', TA:'ReservHotel', TB:'TAP Portugal Hotel', TI:'GLH Hotels', TP:'Top Intl Hotels',
+  TY:'iDiso Hotel Distribution', UI:'Pegasus UI', UZ:'Pegasus UZ', VE:'TravelClick',
+  CB:'Classic British Hotels', CF:'City Partner Hotels', CG:'City Lodge Hotels',
+  CH:'Classic International Hotels', EP:'Epoque Hotels', GF:'Global Hospitality',
+  GG:'Grand Life Hotels', GM:'Meritus Hotels', GN:'Ameris by Grupo Nobile', GQ:'Genre Hotels',
+  GR:'GuestBook Rewards', GW:'Great Hotels', HA:'Hotusa Hotels', HD:'Hcorpo', HE:'Historic Hotels',
+  LM:'TravelClick', OI:'Amadeus LinkHotel', OK:'Alesia Distribution', ON:'Reconline',
+  PW:'Whiteboard Labs', QH:'QHotels', QO:'Swiss Quality', QR:'Quality Reservations',
+  RF:'Red Roof Inns', RG:'Rydges Hotels & Resorts', RH:'ResHub', RL:'Red Lion Hotels',
+  RM:'Shiji Group', RW:'Rosewood Hotels', RX:'Rixos Hotels', RY:'Rodeway Inns', ST:'Xenia Hotellerie',
+  HV:'HRS', QT:'QT Hotels & Resorts', QU:'Aqua Hotels and Resorts', ZQ:'Amex Direct',
+  SD:'Next Hotels & Resorts', AE:'Alba Travel', XT:'Pegasus XT', HC:'Canvas Hospitality',
+  AA:'AADX Plus', TE:'Teldar Travel', OD:'Omnibees Distribution', XP:'Petrobras',
+  EQ:'Eaton Hotels', JR:'JR Hotel Group', LU:'Signature Hotels', ZA:'ZaZa Resorts',
+  SK:'Sixty Hotels', LA:'LinkHotel Africa', WO:'Wyndham Xtra Holiday', XH:'Equinox Hotels',
+  SJ:'SunHotels', BB:'TravelBoutique', AD:'Amadeus Value Hotels', FI:'Frasers Hospitality',
+  DJ:'Divan Hotels', JL:'JAL Service', BI:'Baccarat and 1 Hotels', IE:'Tommie Hotels',
+  GD:'SiteMinder', FB:'FCTG Private Hotel', ML:'Molina Viajes', GV:'Gansevoort Hotel Group',
+  CT:'Content Inn', UU:'WorldHotels United', FE:'Esplendor & Dazzler', RI:'Restel',
+  FL:'Flemings Hotels', GO:'AHA Hotels & Lodges', CR:'Chakela Hotels & Resorts',
+  NI:'Intrigue Hotels & Resorts', OG:'S.E.H.', EG:'Enchantment Group', KS:'Khos',
+  OP:'Orbit Product', TZ:'TMS', GK:'GHS Global Hospitality', ED:'Edwardian Hotels', OW:'Oakwood',
+  FR:'RocketFuel', GP:'Graduate Hotels', HO:'HotelREZ Hotels & Resorts',
+  DI:'Days Inn by Wyndham'
+};
+function hotelBrandName(code){
+  if (!code) return '';
+  return HOTEL_BRAND_CODES[code.trim().toUpperCase()] || '';
 }
 
 function operatingCarrier(seg){
@@ -845,16 +1000,35 @@ function parseAirLine(line){
 
 function parseHotelLine(line){
   const upper = line.toUpperCase();
-  if (!/HTL|HOTEL|MARRIOTT|HILTON|HYATT|SHERATON|WESTIN|IHG|ACCOR/.test(upper)) return null;
+  if (!/\bHTL\b|\bHHL\b|HOTEL|MARRIOTT|HILTON|HYATT|SHERATON|WESTIN|IHG|ACCOR/.test(upper)) return null;
   const seg = newSeg('hotel');
-  const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
-  if (dateRange){ seg.checkIn = ddmmmToLabel(dateRange[1]); seg.checkOut = ddmmmToLabel(dateRange[2]); }
-  const cityM = upper.match(/\b([A-Z]{3})\b\s+[A-Z]{2}\b/) || upper.match(/HOTEL\s+([A-Z ]{3,})/);
-  seg.city = cityM ? (cityM[1].length===3 ? cityName(cityM[1]) : cityM[1].trim()) : '';
+  // Real Sabre format: "HHL <chain> HK<qty> <city> IN<date> <wk>-OUT<date>   <n>NT    <propertyId> <name-start> /DC..."
+  // The hotel name is often split by the terminal's line wrap: it starts right
+  // after the property ID and continues onto the next physical line.
+  const hhlM = upper.match(/\bHHL\s+([A-Z0-9]{1,3})\s+HK\d+\s+([A-Z]{3})\s+IN(\d{1,2}[A-Z]{3})\b.*?OUT(\d{1,2}[A-Z]{3})(?:\s+(\d+)NT\s+(\d+)\s+([A-Z0-9]+)\s*\/DC)?/);
+  if (hhlM){
+    seg.chainCode = hhlM[1];
+    seg.city = cityName(hhlM[2]);
+    seg.checkIn = ddmmmToLabel(hhlM[3]);
+    seg.checkOut = ddmmmToLabel(hhlM[4]);
+    if (hhlM[5]) seg.nights = hhlM[5];
+    if (hhlM[6]) seg.propertyId = hhlM[6];
+    if (hhlM[7]){
+      seg.name = hhlM[7];
+      seg._nameContinues = true; // next physical line likely completes the name
+    } else {
+      seg.name = `Hotel (${hhlM[1]})`;
+    }
+  } else {
+    const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
+    if (dateRange){ seg.checkIn = ddmmmToLabel(dateRange[1]); seg.checkOut = ddmmmToLabel(dateRange[2]); }
+    const cityM = upper.match(/\b([A-Z]{3})\b\s+[A-Z]{2}\b/) || upper.match(/HOTEL\s+([A-Z ]{3,})/);
+    seg.city = cityM ? (cityM[1].length===3 ? cityName(cityM[1]) : cityM[1].trim()) : '';
+    const nameM = line.match(/^\s*\d+\s+([A-Za-z0-9&' \.]{3,40})/);
+    seg.name = nameM ? nameM[1].trim() : 'Hotel';
+  }
   const confM = upper.match(/CONF[-:]?\s*([A-Z0-9]{4,10})/) || upper.match(/\/([A-Z0-9]{6,10})\b/);
   seg.confirmation = confM ? confM[1] : '';
-  const nameM = line.match(/^\s*\d+\s+([A-Za-z0-9&' \.]{3,40})/);
-  seg.name = nameM ? nameM[1].trim() : 'Hotel';
   return seg;
 }
 
@@ -862,12 +1036,25 @@ function parseCarLine(line){
   const upper = line.toUpperCase();
   if (!/\bCAR\b|HERTZ|AVIS|BUDGET|NATIONAL|ENTERPRISE|SIXT|ALAMO|DOLLAR|THRIFTY/.test(upper)) return null;
   const seg = newSeg('car');
-  const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
-  if (dateRange){ seg.pickupDate = ddmmmToLabel(dateRange[1]); seg.dropoffDate = ddmmmToLabel(dateRange[2]); }
-  const locM = upper.match(/\b([A-Z]{3})\b/);
-  seg.location = locM ? cityName(locM[1]) : '';
-  const vendorM = upper.match(/HERTZ|AVIS|BUDGET|NATIONAL|ENTERPRISE|SIXT|ALAMO|DOLLAR|THRIFTY/);
-  seg.vendor = vendorM ? vendorM[0].charAt(0)+vendorM[0].slice(1).toLowerCase() : 'Car rental';
+  // Real Sabre format: "CAR <vendor code> <pickup date> <wk> HK<qty>  <city>/<dropoff date>/<ACRISS code>/..."
+  const carM = upper.match(/\bCAR\s+([A-Z0-9]{2})\s+(\d{1,2}[A-Z]{3})\b.*?\bHK\d+\s+([A-Z]{3})\/(\d{1,2}[A-Z]{3})(?:\/([A-Z]{4})\b)?/);
+  if (carM){
+    seg.vendor = carVendorName(carM[1]) || `Car rental (${carM[1]})`;
+    seg.pickupDate = ddmmmToLabel(carM[2]);
+    seg.location = cityName(carM[3]);
+    seg.dropoffDate = ddmmmToLabel(carM[4]);
+    if (carM[5]){
+      seg.carTypeCode = carM[5];
+    }
+  } else {
+    const dateRange = upper.match(/(\d{1,2}[A-Z]{3})\s*[-\/]\s*(\d{1,2}[A-Z]{3})/);
+    if (dateRange){ seg.pickupDate = ddmmmToLabel(dateRange[1]); seg.dropoffDate = ddmmmToLabel(dateRange[2]); }
+    // Skip the literal word "CAR" itself when looking for the 3-letter location code
+    const locM = upper.match(/\b(?!CAR\b)([A-Z]{3})\b/);
+    seg.location = locM ? cityName(locM[1]) : '';
+    const vendorM = upper.match(/HERTZ|AVIS|BUDGET|NATIONAL|ENTERPRISE|SIXT|ALAMO|DOLLAR|THRIFTY/);
+    seg.vendor = vendorM ? vendorM[0].charAt(0)+vendorM[0].slice(1).toLowerCase() : 'Car rental';
+  }
   const confM = upper.match(/CONF[-:]?\s*([A-Z0-9]{4,10})/) || upper.match(/\/([A-Z0-9]{6,10})\b/);
   seg.confirmation = confM ? confM[1] : '';
   return seg;
@@ -902,6 +1089,31 @@ function parseRecord(text){
     const bareRefM = line.match(/^\/DC[A-Z0-9]{2}\*([A-Z0-9]{3,8})/i);
     if (bareRefM && found.length && found[found.length-1].type === 'flight' && !found[found.length-1].airlineRef){
       found[found.length-1].airlineRef = bareRefM[1];
+      return;
+    }
+    // Hotel names are often split by the terminal's line wrap — the name
+    // starts on the property line and continues onto the very next line,
+    // ending right before the rate-plan code (which starts with a digit).
+    if (found.length && found[found.length-1]._nameContinues){
+      const tokens = line.trim().split(/\s+/);
+      const nameTokens = [];
+      for (const tok of tokens){
+        if (/^\d/.test(tok)) break;
+        nameTokens.push(tok);
+      }
+      if (nameTokens.length){
+        const [first, ...rest] = nameTokens;
+        found[found.length-1].name += first + (rest.length ? ' ' + rest.join(' ') : '');
+      }
+      delete found[found.length-1]._nameContinues;
+      return;
+    }
+    // Hotel/car remarks routinely wrap across 3-4 lines, with the actual
+    // confirmation number ("CF-xxxxx") buried partway through a later line
+    // rather than on the segment's own primary line — attach it when found.
+    const cfM = line.match(/\bCF-([A-Z0-9]{4,14})\b/);
+    if (cfM && found.length && (found[found.length-1].type === 'hotel' || found[found.length-1].type === 'car') && !found[found.length-1].confirmation){
+      found[found.length-1].confirmation = cfM[1];
       return;
     }
     // Passenger name lines (e.g. "1.1SOMOGYI/RON BARRY" in Sabre or
@@ -958,14 +1170,14 @@ const SCHEMAS = {
     ['airlineRef','Airline reference','ABC123'], ['operatedBy','Operated by',''], ['terminal','Terminal / gate','T4']
   ],
   hotel: [
-    ['name','Hotel name','The Ritz-Carlton'], ['city','City','Rome'],
+    ['name','Hotel name','The Ritz-Carlton'], ['chainCode','Brand code','PE'], ['city','City','Rome'],
     ['checkIn','Check-in','12 Aug'], ['checkOut','Check-out','15 Aug'],
-    ['confirmation','Confirmation #','H12345'], ['address','Address','']
+    ['confirmation','Confirmation #','H12345'], ['propertyId','Property ID','1765'], ['address','Address','']
   ],
   car: [
     ['vendor','Rental company','Hertz'], ['location','Pickup city','Los Angeles'],
     ['pickupDate','Pickup date','12 Aug'], ['dropoffDate','Drop-off date','15 Aug'],
-    ['confirmation','Confirmation #','C98213']
+    ['confirmation','Confirmation #','C98213'], ['carTypeCode','Car type code (ACRISS)','IFAR']
   ],
   rail: [
     ['vendor','Rail line','Eurostar'], ['from','From city','Paris'], ['to','To city','London'],
@@ -1356,14 +1568,17 @@ function segRowData(seg){
     };
   }
   if (seg.type === 'hotel'){
+    const brand = hotelBrandName(seg.chainCode);
+    const displayName = brand || (seg.name||'Hotel');
     const main = `
       <div style="display:flex;gap:10px;align-items:flex-start;">
         ${typeIcon('⌂', shadeColor('#8AC6E2', 78))}
         <div>
-          <div style="font-weight:600;">${escapeHtml(seg.name||'Hotel')}</div>
+          <div style="font-weight:600;">${escapeHtml(displayName)}</div>
           ${seg.city ? `<div style="${muted}">${escapeHtml(seg.city)}</div>` : ''}
           ${seg.address ? `<div style="${muted}">${escapeHtml(seg.address)}</div>` : ''}
           ${seg.confirmation ? `<div style="${muted}">Reference: ${escapeHtml(seg.confirmation)}</div>` : ''}
+          ${seg.propertyId ? `<div style="${muted}">Property ID: ${escapeHtml(seg.propertyId)}</div>` : ''}
         </div>
       </div>`;
     return {
@@ -1380,6 +1595,7 @@ function segRowData(seg){
         <div>
           <div style="font-weight:600;">${escapeHtml(seg.vendor||'Car rental')}</div>
           ${seg.location ? `<div style="${muted}">${escapeHtml(seg.location)}</div>` : ''}
+          ${seg.carTypeCode ? `<div style="${muted}">${escapeHtml(decodeAcrissCode(seg.carTypeCode) || seg.carTypeCode)}</div>` : ''}
           ${seg.confirmation ? `<div style="${muted}">Reference: ${escapeHtml(seg.confirmation)}</div>` : ''}
         </div>
       </div>`;
@@ -1564,6 +1780,10 @@ function renderSimpleTable(){
   if (segments.length === 0){
     return `<div class="simple-view"><div class="doc-empty" style="padding:40px 10px;"><div class="glyph">✈︎</div><h3>Nothing to show yet</h3><div>Parse a PNR or add a segment on the left to build the table.</div></div></div>`;
   }
+  const dupes = findDuplicateSegmentNumbers();
+  if (dupes.length){
+    return `<div class="simple-view"><div class="doc-empty" style="padding:40px 10px;"><div class="glyph">⚠</div><h3>Duplicate segment number${dupes.length>1?'s':''}</h3><div>Resolve the warning above (segment${dupes.length>1?'s':''} ${dupes.join(', ')}) before the itinerary can be shown — remove or renumber the duplicate first.</div></div></div>`;
+  }
   const html = buildFullOutputHtml().replace(/<table /g, '<table class="email-table" ');
   return `<div class="simple-view">${html}</div>`;
 }
@@ -1572,9 +1792,40 @@ function renderDoc(){
   els.itineraryDoc.innerHTML = renderSimpleTable();
 }
 
+function segmentsLikelyIdentical(a, b){
+  if (a.type !== b.type || a.gdsNumber !== b.gdsNumber) return false;
+  if (a.type === 'flight') return a.airline === b.airline && a.flightNo === b.flightNo && a.date === b.date;
+  if (a.type === 'hotel') return a.chainCode === b.chainCode && a.checkIn === b.checkIn && a.propertyId === b.propertyId;
+  if (a.type === 'car') return a.vendor === b.vendor && a.pickupDate === b.pickupDate;
+  if (a.type === 'rail') return a.vendor === b.vendor && a.date === b.date;
+  return false;
+}
+
+function findDuplicateSegmentNumbers(){
+  const counts = {};
+  segments.forEach(seg => {
+    if (seg.gdsNumber != null){
+      counts[seg.gdsNumber] = (counts[seg.gdsNumber] || 0) + 1;
+    }
+  });
+  return Object.keys(counts).filter(n => counts[n] > 1).map(Number).sort((a,b)=>a-b);
+}
+
+function renderDuplicateWarning(){
+  const dupes = findDuplicateSegmentNumbers();
+  if (dupes.length){
+    const numList = dupes.join(', ');
+    els.duplicateWarning.textContent = `⚠ Segment number${dupes.length>1?'s':''} ${numList} ${dupes.length>1?'appear':'appears'} more than once. This usually means two itineraries got pasted together, or the numbering restarted partway through — check the segments below and renumber or remove the duplicate before using "Segments" ranges in an exchange option, since a duplicated number will only resolve to one of them.`;
+    els.duplicateWarning.style.display = 'block';
+  } else {
+    els.duplicateWarning.style.display = 'none';
+  }
+}
+
 function renderAll(){
   renderSegEditor();
   renderDoc();
+  renderDuplicateWarning();
 }
 
 /* ============================================================
@@ -1611,8 +1862,13 @@ els.parseBtn.addEventListener('click', ()=>{
   if (newSegs.length === 0){
     els.detectHint.textContent = `No segments recognized automatically (source guess: ${src}). This happens with less common PNR display formats — add segments manually below and fill in details, or try a different display type (e.g. Sabre *IR, Amadeus RTR).`;
   } else {
-    els.detectHint.textContent = `Detected ${src === 'sabre' ? 'Sabre' : 'Amadeus'}-style format · found ${newSegs.length} segment${newSegs.length>1?'s':''}. Double-check the fields below — auto-parse is a starting point, not gospel.`;
-    segments = segments.concat(newSegs);
+    const toAdd = newSegs.filter(ns => !segments.some(es => segmentsLikelyIdentical(ns, es)));
+    const skipped = newSegs.length - toAdd.length;
+    segments = segments.concat(toAdd);
+    let msg = `Detected ${src === 'sabre' ? 'Sabre' : 'Amadeus'}-style format · found ${newSegs.length} segment${newSegs.length>1?'s':''}`;
+    if (skipped > 0) msg += ` (${skipped} already present, skipped)`;
+    msg += `. Double-check the fields below — auto-parse is a starting point, not gospel.`;
+    els.detectHint.textContent = msg;
   }
   renderAll();
 });
@@ -1724,6 +1980,11 @@ els.copyBtn.addEventListener('click', async ()=>{
   if (segments.length === 0){
     els.copyBtn.textContent = 'Nothing to copy yet';
     setTimeout(()=>{ els.copyBtn.textContent = '⧉ Copy table HTML'; }, 1600);
+    return;
+  }
+  if (findDuplicateSegmentNumbers().length){
+    els.copyBtn.textContent = 'Resolve duplicate first';
+    setTimeout(()=>{ els.copyBtn.textContent = '⧉ Copy table HTML'; }, 2000);
     return;
   }
   const html = buildFullOutputHtml();
